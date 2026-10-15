@@ -13,6 +13,8 @@ create table if not exists public.docs (
 
 -- 2. Cada pessoa só enxerga e altera os próprios dados
 alter table public.docs enable row level security;
+revoke all on public.docs from anon;
+grant select, insert, update, delete on public.docs to authenticated;
 drop policy if exists "docs_select_own" on public.docs;
 drop policy if exists "docs_insert_own" on public.docs;
 drop policy if exists "docs_update_own" on public.docs;
