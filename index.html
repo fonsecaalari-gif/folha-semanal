@@ -1063,6 +1063,18 @@ document.addEventListener('input',e=>{
 });
 /* paste as clean text-with-structure */
 document.addEventListener('paste',e=>{const ed=e.target.closest&&e.target.closest('.ed');if(!ed)return;const h=e.clipboardData&&e.clipboardData.getData('text/html');if(h){e.preventDefault();document.execCommand('insertHTML',false,clean(h))}});
+/* hour column: tapping any row puts the cursor on that row, adding empty lines if needed */
+function hourRow(e){
+  const t=e.target;if(!t.classList||!t.classList.contains('hrs')||t.readOnly)return;
+  const lh=parseFloat(getComputedStyle(t).lineHeight)||28,r=t.getBoundingClientRect();
+  const row=Math.max(0,Math.floor((e.clientY-r.top+t.scrollTop)/lh));
+  let lines=t.value.split('\n');
+  if(row>=lines.length){t.value+='\n'.repeat(row-lines.length+1);lines=t.value.split('\n');setDay(t.dataset.k,'h',t.value)}
+  else if(t.selectionStart!==t.selectionEnd)return;
+  let pos=0;for(let i=0;i<row;i++)pos+=lines[i].length+1;pos+=lines[row].length;
+  t.focus();t.setSelectionRange(pos,pos);
+}
+document.addEventListener('click',hourRow,true);
 /* keep the hour column scrolled with its sheet */
 document.addEventListener('scroll',e=>{const t=e.target;if(!t.classList||!t.classList.contains('lined'))return;const sib=t.parentElement&&[...t.parentElement.children].find(x=>x!==t&&x.classList.contains('lined'));if(sib&&sib.scrollTop!==t.scrollTop)sib.scrollTop=t.scrollTop},true);
 /* swipe to turn the page */
