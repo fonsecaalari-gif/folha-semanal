@@ -1388,6 +1388,20 @@ function updProc(){
   if(i){i.style.width=pct+'%';i.parentElement.setAttribute('aria-valuenow',pct)}if(n)n.textContent=pct+'%';
 }
 setInterval(()=>{updProc();if(RUNNING.size&&UI.mode==='notes'&&UI.notesTab==='meet'&&!UI.ov){document.querySelectorAll('.mcard[data-id]').forEach(c=>{const id=c.dataset.id,m=S.meetings[id],pl=c.querySelector('.pill');if(m&&pl&&RUNNING.has(id))pl.textContent=stageLabel(m)+' '+meetPct(id)+'%'})}},500);
+function normReport(r){
+  r=r&&typeof r==='object'?r:{};
+  const txt=v=>v==null?'':Array.isArray(v)?v.map(txt).filter(Boolean).join(' '):typeof v==='object'?Object.values(v).map(txt).filter(Boolean).join(' — '):String(v).trim();
+  const list=v=>(Array.isArray(v)?v:v?[v]:[]);
+  const nul=v=>{const t=txt(v);return t&&!/^(null|nenhum[a]?|n\/a|-)$/i.test(t)?t:null};
+  return{
+    titulo:txt(r.titulo),resumo:txt(r.resumo),
+    participantes:list(r.participantes).map(txt).filter(Boolean),
+    pautas:list(r.pautas).map(p=>typeof p==='object'&&p?{tema:txt(p.tema||p.titulo||p.pauta),discussao:txt(p.discussao||p.descricao||p.resumo)}:{tema:txt(p),discussao:''}).filter(p=>p.tema||p.discussao),
+    decisoes:list(r.decisoes).map(txt).filter(Boolean),
+    pendencias:list(r.pendencias).map(p=>typeof p==='object'&&p?{acao:txt(p.acao||p.tarefa||p.descricao),responsavel:nul(p.responsavel),prazo:/^\d{4}-\d{2}-\d{2}$/.test(txt(p.prazo))?txt(p.prazo):null,prazo_texto:nul(p.prazo_texto)||(txt(p.prazo)&&!/^\d{4}-/.test(txt(p.prazo))?nul(p.prazo):null)}:{acao:txt(p),responsavel:null,prazo:null,prazo_texto:null}).filter(p=>p.acao),
+    proxima_reuniao:nul(r.proxima_reuniao),observacoes:nul(r.observacoes)
+  };
+}
 async function recoverParts(id,m){
   try{
     const dir=`${UID}/reunioes/${id}`,r=await SB.storage.from('anexos').list(dir,{limit:200,sortBy:{column:'name',order:'asc'}});
@@ -1421,8 +1435,8 @@ async function processMeeting(id){
     {const P=prog(id);P.sumT0=Date.now();P.sumEst=Math.min(60,10+transcript.length/1500)}
     UI.procNote='Escrevendo o relatório e a memória…';m.status='sum';save();renderProc(id);
     const r=await callFn({action:'summarize',transcript,meta:{data:brDate(m.date),horario:m.start?(m.start+(m.end?' às '+m.end:'')):null,local:m.local,titulo:m.title,participantes:m.participants}});
-    m.report=r.report||{};if(!m.title&&m.report.titulo)m.title=m.report.titulo;
-    m.memo=buildMemo(m);m.status='done';save();
+    m.report=normReport(r.report);if(!m.title&&m.report.titulo)m.title=m.report.titulo;
+    m.report._n=1;m.memo=buildMemo(m);m.status='done';save();
     RUNNING.delete(id);linkMeetingToDay(id);
     if(UI.ov==='meetproc'&&UI.meet===id)openMeeting(id,'resumo');
     else{msg('Relatório da reunião pronto.');if(UI.mode==='notes'&&!UI.ov)render()}
@@ -1478,6 +1492,7 @@ function cleanMemo(html){
 }
 function openMeeting(id,tab){
   const m=S.meetings[id];if(!m){msg('Essa reunião não existe mais.');return}
+  if(m.status==='done'&&m.report&&!m.report._n){m.report={...normReport(m.report),_n:1};if(!m.memoEdited)m.memo=buildMemo(m);saveMeet(id,m)}
   if(m.status!=='done'){openProc(id);if(m.status!=='err'&&!RUNNING.has(id))processMeeting(id);return}
   UI.meet=id;UI.mtab=tab||UI.mtab||'resumo';
   openOv('meet',`<header class="ov-h"><button class="ib" data-act="close" aria-label="Voltar">${ic('back')}</button><h2>${esc(m.title||'Reunião')}</h2><button class="ib" data-act="meetDel" aria-label="Excluir reunião">${ic('trash')}</button></header>
