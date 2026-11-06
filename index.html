@@ -493,7 +493,8 @@ const SB=(CFG.url&&CFG.anonKey&&!/COLE_AQUI/.test(CFG.url+CFG.anonKey)&&window.s
 let UID=null,backendOn=false,timer=null,chan=null;
 const pend=new Map(),busy=new Set();
 const PK=()=>LS+'-pend';
-const isDirty=id=>pend.has(id)||busy.has(id);
+const isDirty=id=>pend.has(id)||busy.has(id)||(id.slice(0,2)==='m_'&&localMeetingBusy(id.slice(2)));
+const localMeetingBusy=k=>{try{return RUNNING.has(k)||(MR&&MR.id===k)||pendingUploads(k)>0}catch(e){return false}};
 function loadPend(){pend.clear();try{(JSON.parse(localStorage.getItem(PK())||'[]')).forEach(([k,v])=>pend.set(k,v))}catch(e){}}
 function savePend(){try{localStorage.setItem(PK(),JSON.stringify([...pend]))}catch(e){}}
 function setSync(ok){if(backendOn!==ok){backendOn=ok;if(UI.ov==='settings')refreshSettings()}}
@@ -1203,7 +1204,7 @@ let upBusy=false;
 const fmtClock=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;return(h?h+':'+pad(m):m)+':'+pad(r)};
 const brDate=k=>{if(!k)return'';const d=parse(k);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()};
 const nowHM=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())};
-const saveMeet=id=>{const m=S.meetings[id];if(m){m.u=Date.now();queue('m_'+id,m)}};
+const saveMeet=(id,obj)=>{if(obj)S.meetings[id]=obj;const m=S.meetings[id];if(m){m.u=Date.now();queue('m_'+id,m)}};
 const STATUS={rec:['Gravando','run'],up:['Enviando áudio','run'],tx:['Transcrevendo','run'],sum:['Gerando relatório','run'],done:['Pronta','ok'],err:['Com erro','err'],wait:['Aguardando','']};
 function meetDay(){
   const ed=UI.ed&&UI.ed.isConnected&&UI.ed.dataset.k;const ds=ed&&ed.split('_')[1];
@@ -1359,7 +1360,7 @@ async function callFn(body){
 }
 const fnErr=e=>({missing_key:'A chave do Mistral ainda não foi colocada no Supabase.',mistral_key_invalid:'A chave do Mistral foi recusada. Confira se ela está certa no Supabase.',
   mistral_rate_limit:'O Mistral pediu para esperar um pouco. Tente de novo em alguns minutos.',mistral_billing:'O Mistral recusou por falta de crédito na conta.',
-  not_authenticated:'Sua sessão expirou. Entre de novo.',empty_transcript:'Não foi possível entender fala nesse áudio.',network:'Sem conexão com o servidor. Verifique a internet.'}[e&&e.error]||
+  not_authenticated:'Sua sessão expirou. Entre de novo.',empty_transcript:'Não foi possível entender fala nesse áudio.',no_audio:'O áudio desta reunião não chegou a ser salvo na nuvem.',network:'Sem conexão com o servidor. Verifique a internet.'}[e&&e.error]||
   ('O processamento falhou'+(e&&e.status?` (código ${e.status})`:'')+'. Tente de novo.'));
 const RUNNING=new Set();
 const PROG=new Map();   // id -> {conv, partT0, partEst, sumT0, sumEst}
@@ -1387,31 +1388,46 @@ function updProc(){
   if(i){i.style.width=pct+'%';i.parentElement.setAttribute('aria-valuenow',pct)}if(n)n.textContent=pct+'%';
 }
 setInterval(()=>{updProc();if(RUNNING.size&&UI.mode==='notes'&&UI.notesTab==='meet'&&!UI.ov){document.querySelectorAll('.mcard[data-id]').forEach(c=>{const id=c.dataset.id,m=S.meetings[id],pl=c.querySelector('.pill');if(m&&pl&&RUNNING.has(id))pl.textContent=stageLabel(m)+' '+meetPct(id)+'%'})}},500);
+async function recoverParts(id,m){
+  try{
+    const dir=`${UID}/reunioes/${id}`,r=await SB.storage.from('anexos').list(dir,{limit:200,sortBy:{column:'name',order:'asc'}});
+    const files=(r.data||[]).filter(f=>/^parte-\d+\.mp3$/.test(f.name));
+    if(!files.length)return false;
+    m.parts=files.map(f=>({path:`${dir}/${f.name}`,sec:Math.max(1,Math.round(((f.metadata&&f.metadata.size)||0)*8/32000))}));
+    m.texts=[];return true;
+  }catch(e){return false}
+}
 async function processMeeting(id){
   if(RUNNING.has(id))return;RUNNING.add(id);
-  const m=S.meetings[id];if(!m){RUNNING.delete(id);return}
+  let m=S.meetings[id];if(!m){RUNNING.delete(id);return}
+  const save=()=>saveMeet(id,m);
   m.err='';
   try{
-    m.status='up';saveMeet(id);UI.procNote=UI.procNote||'Salvando o áudio na sua conta…';renderProc(id);
-    while(pendingUploads(id)){await new Promise(r=>setTimeout(r,800));renderProc(id)}
+    m.status='up';save();UI.procNote=UI.procNote||'Salvando o áudio na sua conta…';renderProc(id);
+    while(pendingUploads(id)){await new Promise(r=>setTimeout(r,800));if(S.meetings[id]!==m&&S.meetings[id])Object.assign(m,{parts:S.meetings[id].parts});renderProc(id)}
+    if(!(m.parts||[]).some(Boolean))await recoverParts(id,m);
     const parts=(m.parts||[]).filter(Boolean);
-    if(!parts.length)throw{error:'empty_transcript'};
-    m.status='tx';m.texts=m.texts||[];saveMeet(id);
+    if(!parts.length)throw{error:'no_audio'};
+    m.status='tx';m.texts=m.texts||[];save();
     let offset=0;
     for(let i=0;i<m.parts.length;i++){
       const p=m.parts[i];if(!p){continue}
       if(!m.texts[i]){UI.procNote=m.parts.length>1?`Transcrevendo parte ${i+1} de ${m.parts.length}…`:'Transcrevendo o áudio…';const P=prog(id);P.partT0=Date.now();P.partEst=Math.max(6,(p.sec||PART_SEC)/25);renderProc(id);
-        const r=await callFn({action:'transcribe',path:p.path,offset});m.texts[i]=r.text||'';m.speakers=m.speakers||r.speakers;saveMeet(id)}
+        const r=await callFn({action:'transcribe',path:p.path,offset});m.texts[i]=r.text||'';m.speakers=m.speakers||r.speakers;save()}
       offset+=p.sec||PART_SEC;
     }
     const transcript=m.texts.filter(Boolean).join('\n\n');
+    if(transcript.replace(/Pessoa \d+ \[[\d:]+\]:/g,'').trim().length<20)throw{error:'empty_transcript'};
     {const P=prog(id);P.sumT0=Date.now();P.sumEst=Math.min(60,10+transcript.length/1500)}
-    UI.procNote='Escrevendo o relatório e a memória…';m.status='sum';saveMeet(id);renderProc(id);
+    UI.procNote='Escrevendo o relatório e a memória…';m.status='sum';save();renderProc(id);
     const r=await callFn({action:'summarize',transcript,meta:{data:brDate(m.date),horario:m.start?(m.start+(m.end?' às '+m.end:'')):null,local:m.local,titulo:m.title,participantes:m.participants}});
     m.report=r.report||{};if(!m.title&&m.report.titulo)m.title=m.report.titulo;
-    m.memo=buildMemo(m);m.status='done';saveMeet(id);linkMeetingToDay(id);
-    if(UI.ov==='meetproc'&&UI.meet===id)openMeeting(id,'resumo');else msg('Relatório da reunião pronto.');
-  }catch(e){console.warn('meeting',e);m.status='err';m.err=fnErr(e);saveMeet(id);renderProc(id)}
+    m.memo=buildMemo(m);m.status='done';save();
+    RUNNING.delete(id);linkMeetingToDay(id);
+    if(UI.ov==='meetproc'&&UI.meet===id)openMeeting(id,'resumo');
+    else{msg('Relatório da reunião pronto.');if(UI.mode==='notes'&&!UI.ov)render()}
+    return;
+  }catch(e){console.warn('meeting',e);m.status='err';m.err=fnErr(e);save();renderProc(id)}
   RUNNING.delete(id);if(UI.mode==='notes'&&!UI.ov)render();
 }
 function openProc(id,note){UI.meet=id;UI.procNote=note||'';openOv('meetproc','<div id="procBox"></div>');renderProc(id)}
@@ -1566,7 +1582,7 @@ Object.assign(ACT,{
 });
 $('#fMeet').addEventListener('change',e=>importMeetAudio(e.target.files[0]));
 /* resume unfinished processing when the app opens */
-function resumeMeetings(){for(const [id,m] of Object.entries(S.meetings))if(['up','tx','sum'].includes(m.status)&&!RUNNING.has(id)&&!MR&&(m.parts||[]).some(Boolean)&&!pendingUploads(id))processMeeting(id)}
+function resumeMeetings(){for(const [id,m] of Object.entries(S.meetings))if(['up','tx','sum'].includes(m.status)&&!RUNNING.has(id)&&!(MR&&MR.id===id)&&!pendingUploads(id))processMeeting(id)}
 addEventListener('beforeunload',e=>{if(MR||UPQ.length){e.preventDefault();e.returnValue=''}});
 
 /* audio recording */
