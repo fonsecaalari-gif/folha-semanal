@@ -334,6 +334,15 @@ img{max-width:100%}
 .step.on{color:var(--ink);font-weight:600}.step.on i{background:#e0a400;animation:blink 1s infinite}
 .step.ok{color:var(--ink)}.step.ok i{background:var(--accent)}
 .step.err{color:var(--danger)}.step.err i{background:var(--danger)}
+.pbox{background:var(--sheet);border-radius:12px;padding:16px 16px 18px;margin:10px 0 0;display:flex;flex-direction:column;gap:10px}
+.pnum{display:flex;align-items:baseline;gap:10px}
+.pnum b{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);line-height:1}
+.pnum span{color:var(--muted);font-weight:600}
+.pbar{height:12px;border-radius:99px;background:var(--hover);overflow:hidden}
+.pbar i{display:block;height:100%;width:0;border-radius:99px;background:var(--accent);transition:width .45s ease;
+  background-image:linear-gradient(90deg,transparent 0,rgba(255,255,255,.28) 50%,transparent 100%);background-size:200% 100%;animation:pshine 1.6s linear infinite}
+@keyframes pshine{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.pbar i{animation:none;transition:none}}
 .mtabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
 .mtabs button{border:0;background:none;padding:10px 12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .mtabs .on{color:var(--accent);border-bottom-color:var(--accent)}
@@ -1206,7 +1215,7 @@ function notesTabs(){return `<div class="ntabs" role="tablist"><button role="tab
 function meetingsView(){
   const list=Object.entries(S.meetings).sort((a,b)=>((b[1].date||'')+(b[1].start||''))<((a[1].date||'')+(a[1].start||''))?-1:1);
   const cards=list.map(([id,m])=>{const d=m.date?parse(m.date):new Date(m.at||Date.now()),st=STATUS[m.status]||STATUS.wait;
-    return `<button class="mcard" data-act="meetOpen" data-id="${id}"><span class="md"><b>${d.getDate()}</b><small>${MES_C[d.getMonth()]}</small></span><span class="mi"><b>${esc(m.title||(m.report&&m.report.titulo)||'Reunião')}</b><span>${esc([m.start&&m.end?m.start+'–'+m.end:m.start,m.local].filter(Boolean).join(' · ')||fmtClock(m.dur||0))}</span></span><span class="pill ${st[1]}">${st[0]}</span></button>`}).join('');
+    return `<button class="mcard" data-act="meetOpen" data-id="${id}"><span class="md"><b>${d.getDate()}</b><small>${MES_C[d.getMonth()]}</small></span><span class="mi"><b>${esc(m.title||(m.report&&m.report.titulo)||'Reunião')}</b><span>${esc([m.start&&m.end?m.start+'–'+m.end:m.start,m.local].filter(Boolean).join(' · ')||fmtClock(m.dur||0))}</span></span><span class="pill ${st[1]}">${st[0]}${RUNNING.has(id)?' '+meetPct(id)+'%':''}</span></button>`}).join('');
   return `<div class="nhead">${notesTabs()}</div>
   <main id="main" class="notes">${list.length?`<div class="mlist">${cards}</div>`:`<p class="empty">Nenhuma reunião gravada ainda. Toque em “Gravar reunião” para começar.</p>`}</main>
   <button class="fab" data-act="meet">${ic('rec')}Gravar reunião</button>`;
@@ -1334,11 +1343,11 @@ async function importMeetAudio(file){
       const n=Math.min(per,outLen-start),pcm=new Int16Array(n);
       for(let i=0;i<n;i++){const a=Math.floor((start+i)*ratio);let v=d0[a];if(d1)v=(v+d1[a])/2;v=Math.max(-1,Math.min(1,v));pcm[i]=v<0?v*32768:v*32767}
       const enc=new lamejs.Mp3Encoder(1,SR,32),bufs=[];
-      for(let i=0;i<n;i+=11520){const b=enc.encodeBuffer(pcm.subarray(i,i+11520));if(b.length)bufs.push(new Uint8Array(b));if(i%(11520*40)===0){setProc(`Convertendo o áudio… ${Math.round((start+i)/outLen*100)}%`);await new Promise(r=>setTimeout(r,0))}}
+      for(let i=0;i<n;i+=11520){const b=enc.encodeBuffer(pcm.subarray(i,i+11520));if(b.length)bufs.push(new Uint8Array(b));if(i%(11520*40)===0){prog(id).conv=(start+i)/outLen;setProc('Convertendo o áudio…');await new Promise(r=>setTimeout(r,0))}}
       const t=enc.flush();if(t.length)bufs.push(new Uint8Array(t));
       UPQ.push({mid:id,idx:idx++,blob:new Blob(bufs,{type:'audio/mpeg'}),sec:n/SR});
     }
-    pumpUploads();linkMeetingToDay(id);processMeeting(id);
+    prog(id).conv=1;pumpUploads();linkMeetingToDay(id);processMeeting(id);
   }catch(e){console.warn(e);m.status='err';m.err='Não foi possível ler esse arquivo de áudio. Tente MP3, M4A ou WAV.';saveMeet(id);renderProc(id)}
 }
 
@@ -1353,12 +1362,37 @@ const fnErr=e=>({missing_key:'A chave do Mistral ainda não foi colocada no Supa
   not_authenticated:'Sua sessão expirou. Entre de novo.',empty_transcript:'Não foi possível entender fala nesse áudio.',network:'Sem conexão com o servidor. Verifique a internet.'}[e&&e.error]||
   ('O processamento falhou'+(e&&e.status?` (código ${e.status})`:'')+'. Tente de novo.'));
 const RUNNING=new Set();
+const PROG=new Map();   // id -> {conv, partT0, partEst, sumT0, sumEst}
+const prog=id=>{if(!PROG.has(id))PROG.set(id,{});return PROG.get(id)};
+function meetPct(id){
+  const m=S.meetings[id];if(!m)return 0;if(m.status==='done')return 100;
+  const P=prog(id),now=Date.now(),partsArr=m.parts||[],pend=pendingUploads(id),tot=Math.max(1,partsArr.length+pend);
+  if(m.status==='up'||m.status==='rec'){
+    if(P.conv!=null&&P.conv<1)return Math.round(P.conv*10);
+    const up=partsArr.filter(Boolean).length/tot;return Math.round(10+10*up);
+  }
+  if(m.status==='tx'){
+    const n=Math.max(1,partsArr.filter(Boolean).length),tx=m.texts||[],done=partsArr.reduce((c,p,i)=>c+(p&&typeof tx[i]==='string'&&tx[i]?1:0),0);
+    const creep=P.partT0?Math.min(.9,(now-P.partT0)/1000/(P.partEst||15)):0;
+    return Math.min(84,Math.round(20+65*((done+creep)/n)));
+  }
+  if(m.status==='sum'){const c=P.sumT0?Math.min(.95,(now-P.sumT0)/1000/(P.sumEst||25)):0;return Math.round(85+14*c)}
+  if(m.status==='err')return P.last||0;
+  return 0;
+}
+const stageLabel=m=>({up:'Salvando o áudio',tx:'Transcrevendo',sum:'Gerando relatório',done:'Pronta',err:'Com erro',rec:'Gravando'}[m.status]||'Aguardando');
+function updProc(){
+  const id=UI.meet;if(UI.ov!=='meetproc'||!id)return;const m=S.meetings[id];if(!m)return;
+  const pct=meetPct(id);prog(id).last=pct;const i=$('#pbI'),n=$('#pbN');
+  if(i){i.style.width=pct+'%';i.parentElement.setAttribute('aria-valuenow',pct)}if(n)n.textContent=pct+'%';
+}
+setInterval(()=>{updProc();if(RUNNING.size&&UI.mode==='notes'&&UI.notesTab==='meet'&&!UI.ov){document.querySelectorAll('.mcard[data-id]').forEach(c=>{const id=c.dataset.id,m=S.meetings[id],pl=c.querySelector('.pill');if(m&&pl&&RUNNING.has(id))pl.textContent=stageLabel(m)+' '+meetPct(id)+'%'})}},500);
 async function processMeeting(id){
   if(RUNNING.has(id))return;RUNNING.add(id);
   const m=S.meetings[id];if(!m){RUNNING.delete(id);return}
   m.err='';
   try{
-    m.status='up';saveMeet(id);renderProc(id);
+    m.status='up';saveMeet(id);UI.procNote=UI.procNote||'Salvando o áudio na sua conta…';renderProc(id);
     while(pendingUploads(id)){await new Promise(r=>setTimeout(r,800));renderProc(id)}
     const parts=(m.parts||[]).filter(Boolean);
     if(!parts.length)throw{error:'empty_transcript'};
@@ -1366,12 +1400,13 @@ async function processMeeting(id){
     let offset=0;
     for(let i=0;i<m.parts.length;i++){
       const p=m.parts[i];if(!p){continue}
-      if(!m.texts[i]){UI.procNote=`Transcrevendo parte ${i+1} de ${m.parts.length}…`;renderProc(id);
+      if(!m.texts[i]){UI.procNote=m.parts.length>1?`Transcrevendo parte ${i+1} de ${m.parts.length}…`:'Transcrevendo o áudio…';const P=prog(id);P.partT0=Date.now();P.partEst=Math.max(6,(p.sec||PART_SEC)/25);renderProc(id);
         const r=await callFn({action:'transcribe',path:p.path,offset});m.texts[i]=r.text||'';m.speakers=m.speakers||r.speakers;saveMeet(id)}
       offset+=p.sec||PART_SEC;
     }
-    UI.procNote='';m.status='sum';saveMeet(id);renderProc(id);
     const transcript=m.texts.filter(Boolean).join('\n\n');
+    {const P=prog(id);P.sumT0=Date.now();P.sumEst=Math.min(60,10+transcript.length/1500)}
+    UI.procNote='Escrevendo o relatório e a memória…';m.status='sum';saveMeet(id);renderProc(id);
     const r=await callFn({action:'summarize',transcript,meta:{data:brDate(m.date),horario:m.start?(m.start+(m.end?' às '+m.end:'')):null,local:m.local,titulo:m.title,participantes:m.participants}});
     m.report=r.report||{};if(!m.title&&m.report.titulo)m.title=m.report.titulo;
     m.memo=buildMemo(m);m.status='done';saveMeet(id);linkMeetingToDay(id);
@@ -1387,6 +1422,7 @@ function renderProc(id){
   const step=(k,label)=>{const i=order.indexOf(k);const cls=(m.status==='done'||(cur>=0&&i<cur))?'ok':i===cur?'on':'';return `<div class="step ${cls}"><i></i>${label}</div>`};
   box.innerHTML=`<header class="ov-h"><button class="ib" data-act="close" aria-label="Fechar">${ic('back')}</button><h2>${esc(m.title||'Reunião')}</h2></header>
   <div class="ov-body"><p class="note-sm" style="margin-top:0">${brDate(m.date)}${m.dur?' · '+fmtClock(m.dur)+' de áudio':''}</p>
+  ${m.status==='err'?'':`<div class="pbox"><div class="pnum"><b id="pbN">${meetPct(id)}%</b><span>${stageLabel(m)}</span></div><div class="pbar" role="progressbar" aria-label="Progresso do relatório" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${meetPct(id)}"><i id="pbI" style="width:${meetPct(id)}%"></i></div></div>`}
   <div class="steps">${step('up','Salvando o áudio na sua conta')}${step('tx','Transcrevendo com o Mistral')}${step('sum','Escrevendo resumo, pautas, pendências e memória')}</div>
   <p class="recstate">${esc(m.status==='err'?'':UI.procNote||'')}</p>
   ${m.status==='err'?`<p class="aerr" style="font-size:14px">${esc(m.err||'Algo deu errado.')}</p><div class="btns"><button class="cta wide" data-act="meetRetry" data-id="${id}">Tentar de novo</button></div>`:''}
