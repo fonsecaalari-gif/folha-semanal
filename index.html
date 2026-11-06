@@ -291,6 +291,84 @@ img{max-width:100%}
 @keyframes blink{50%{opacity:.25}}
 .viewer audio{width:100%}
 @media (prefers-reduced-motion:reduce){.rec i{animation:none}}
+/* meetings */
+.recbtn{color:var(--today)}
+.recbtn.live{background:var(--today);color:var(--today-ink);animation:blink 1.4s infinite}
+.mt{display:inline-block;max-width:calc(100% - .5em);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom;color:var(--accent);font-weight:700;cursor:pointer;font-family:var(--ui);line-height:var(--lh)}
+.mt::before{content:"";display:inline-block;width:1em;height:1em;margin-right:.3em;vertical-align:-.15em;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M6 3h9l4 4v14H6z'/%3E%3Cpath d='M14 3v5h5M9 13h7M9 17h5'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M6 3h9l4 4v14H6z'/%3E%3Cpath d='M14 3v5h5M9 13h7M9 17h5'/%3E%3C/svg%3E") center/contain no-repeat}
+.ntabs{display:flex;gap:2px;background:var(--hover);border-radius:10px;padding:3px}
+.ntabs button{border:0;background:none;border-radius:8px;padding:6px 12px;font-weight:600;font-size:14px;color:var(--muted)}
+.ntabs .on{background:var(--sheet);color:var(--ink);box-shadow:var(--shadow)}
+.mlist{display:flex;flex-direction:column;gap:8px}
+.mcard{display:flex;align-items:center;gap:12px;text-align:left;border:0;background:var(--sheet);border-radius:10px;box-shadow:var(--shadow);padding:12px 14px;min-width:0}
+.mcard .md{flex:none;width:44px;text-align:center;line-height:1.1}
+.mcard .md b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.mcard .md small{font-size:11px;color:var(--muted);text-transform:uppercase}
+.mcard .mi{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mcard .mi b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard .mi span{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{flex:none;font-size:11px;font-weight:700;border-radius:999px;padding:3px 8px;background:var(--hover);color:var(--muted)}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}
+.pill.err{background:color-mix(in srgb,var(--danger) 14%,var(--sheet));color:var(--danger)}
+.pill.run{background:color-mix(in srgb,#e0a400 18%,var(--sheet));color:#8a6400}
+.form{display:flex;flex-direction:column;gap:4px}
+.form label{font-size:13px;font-weight:600;color:var(--muted);margin-top:10px}
+.form input,.form textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--sheet);border:1px solid var(--border);border-radius:10px;padding:10px 12px;resize:vertical}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.form .two>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.btns{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.ghost{border:1px solid var(--border);background:var(--sheet);color:var(--ink);border-radius:14px;padding:12px 16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px}
+.recview{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:20px 0}
+.recview h2{margin:0;font-size:18px;max-width:20em}
+.bigt{font-size:56px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1}
+.lvl{width:min(320px,80%);height:8px;border-radius:99px;background:var(--hover);overflow:hidden}
+.lvl i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
+.recstate{font-size:13px;color:var(--muted);min-height:1.3em}
+.recctl{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.recctl .cta{margin:0}
+.steps{display:flex;flex-direction:column;gap:10px;background:var(--sheet);border-radius:12px;padding:16px;margin:10px 0}
+.step{display:flex;align-items:center;gap:10px;color:var(--muted)}
+.step i{width:10px;height:10px;border-radius:50%;background:var(--border);flex:none}
+.step.on{color:var(--ink);font-weight:600}.step.on i{background:#e0a400;animation:blink 1s infinite}
+.step.ok{color:var(--ink)}.step.ok i{background:var(--accent)}
+.step.err{color:var(--danger)}.step.err i{background:var(--danger)}
+.mtabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.mtabs button{border:0;background:none;padding:10px 12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.mtabs .on{color:var(--accent);border-bottom-color:var(--accent)}
+.mbody{flex:1;overflow:auto;min-height:0;padding:12px 2px 30px}
+.msec h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px}
+.msec p{margin:0 0 8px;line-height:1.55}
+.msec ul,.msec ol{margin:0;padding-left:1.3em;line-height:1.55}
+.msec li{margin-bottom:6px}
+.pend{display:flex;gap:10px;align-items:flex-start;background:var(--sheet);border-radius:10px;padding:10px 12px;margin-bottom:6px}
+.pend b{display:block;font-weight:600}
+.pend small{color:var(--muted)}
+.mact{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.mact button{border:1px solid var(--border);background:var(--sheet);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+.mact button svg{width:18px;height:18px}
+.memo{background:#fff;color:#1b1b1b;border-radius:6px;box-shadow:var(--shadow);padding:28px 26px;font-family:"Lora",Georgia,serif;font-size:15px;line-height:1.55;outline:none}
+.memo:focus{box-shadow:0 0 0 2px var(--accent)}
+.memo h1{font-family:var(--ui);font-size:18px;text-align:center;letter-spacing:.06em;margin:0 0 16px}
+.memo h2{font-family:var(--ui);font-size:14px;letter-spacing:.04em;text-transform:uppercase;margin:20px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}
+.memo h3{font-size:15px;margin:12px 0 4px}
+.memo table{border-collapse:collapse;width:100%;margin:6px 0;font-size:14px}
+.memo th,.memo td{border:1px solid #bbb;padding:6px 8px;text-align:left;vertical-align:top}
+.memo th{background:#f1f3f3;font-family:var(--ui);font-weight:600}
+.memo .mm-meta th{width:28%}
+.memo .mm-sign{margin-top:28px}
+.tx{white-space:pre-wrap;line-height:1.6;background:var(--sheet);border-radius:10px;padding:14px;font-size:14px}
+.audios{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.audios audio{width:100%}
+#print{display:none}
+@media print{
+  body>*:not(#print){display:none!important}
+  #print{display:block!important}
+  #print .memo{box-shadow:none;padding:0}
+  :root,body{background:#fff!important;padding:0!important}
+}
+
 </style>
 </head>
 <body>
@@ -300,6 +378,8 @@ img{max-width:100%}
 <div id="ov" hidden></div>
 <div id="toast" hidden></div>
 <div id="msg" role="status" hidden></div>
+<div id="print"></div>
+<input type="file" id="fMeet" accept="audio/*,video/*,.m4a,.mp3,.wav,.ogg,.webm,.flac,.aac,.mp4" hidden>
 <div id="alarm" role="alert" hidden></div>
 <input type="file" id="fImg" accept="image/*" hidden>
 <input type="file" id="fAtt" hidden>
@@ -307,6 +387,7 @@ img{max-width:100%}
 
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const TBEL=document.getElementById('tb');
@@ -352,6 +433,12 @@ const I={
   align:'<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>',
   aC:'<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>', aR:'<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>', aJ:'<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>',
   open:'<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>', pen:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  rec:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor"/>',
+  share:'<path d="M12 15V3m-4 4 4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
+  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  doc:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+  pause:'<path d="M9 5v14M15 5v14"/>', play:'<path d="M7 4v16l13-8z"/>', stop:'<rect x="6" y="6" width="12" height="12" rx="2"/>',
   mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   dl:'<path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/>', up:'<path d="M12 20V9m-5 5 5-5 5 5M5 4h14"/>'
 };
@@ -376,13 +463,14 @@ const TB=[['undo','Desfazer'],['redo','Refazer'],['bold','Negrito'],['italic','I
 const TB_OFF={underline:true};
 const DEF={view:'7',hora:false,theme:'system',color:'teal',font:'m',hand:false,anim:true,agenda:'main',sort:'new',tip:true,
   dfmt:'short',strike:true,cbColor:'accent',doneColor:'muted',moveDone:false,tbShow:true,tb:{},mini:false,imgSize:'m',readonly:false};
-const fresh=()=>({settings:{...DEF},agendas:{main:{name:'Planner',at:0}},days:{},notes:{},reminders:{}});
+const fresh=()=>({settings:{...DEF},agendas:{main:{name:'Planner',at:0}},days:{},notes:{},reminders:{},meetings:{}});
+const BAGS={d_:'days',n_:'notes',r_:'reminders',m_:'meetings'};
 let S=fresh();
 const UI={mode:'planner',cur:new Date(),month:null,turn:0,ov:null,note:null,ed:null,range:null,tc:'#d0312d'};
 let LS='folha-semanal-local';
 const tbOn=k=>{const t=S.settings.tb||{};return k in t?!!t[k]:!TB_OFF[k]};
 
-function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j){S={...fresh(),...j,settings:{...DEF,...(j.settings||{})}};S.reminders=S.reminders||{}}}catch(e){}}
+function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LS)||'null');if(j){S={...fresh(),...j,settings:{...DEF,...(j.settings||{})}};S.reminders=S.reminders||{};S.meetings=S.meetings||{}}}catch(e){}}
 let lsT;function saveLocalSoon(){clearTimeout(lsT);lsT=setTimeout(()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}},400)}
 function ensureAgenda(){
   if(!S.agendas||!Object.keys(S.agendas).length)S.agendas={main:{name:'Planner',at:0}};
@@ -424,9 +512,9 @@ const saveSettings=()=>queue('s',{settings:S.settings,agendas:S.agendas});
 function applyDoc(id,data){
   data=data?structuredClone(data):null;
   if(id==='s'){if(data){S.settings={...DEF,...(data.settings||{})};if(data.agendas&&Object.keys(data.agendas).length)S.agendas=data.agendas}}
-  else{const t=id.slice(0,2),k=id.slice(2),bag={d_:'days',n_:'notes',r_:'reminders'}[t];if(bag){data?S[bag][k]=data:delete S[bag][k]}}
+  else{const t=id.slice(0,2),k=id.slice(2),bag=BAGS[t];if(bag){data?S[bag][k]=data:delete S[bag][k]}}
 }
-function pushAll(){saveSettings();for(const k in S.days)queue('d_'+k,S.days[k]);for(const k in S.notes)queue('n_'+k,S.notes[k]);for(const k in S.reminders)queue('r_'+k,S.reminders[k])}
+function pushAll(){saveSettings();for(const k in S.days)queue('d_'+k,S.days[k]);for(const k in S.notes)queue('n_'+k,S.notes[k]);for(const k in S.reminders)queue('r_'+k,S.reminders[k]);for(const k in S.meetings)queue('m_'+k,S.meetings[k])}
 let pulling=false;
 async function pullAll(){
   if(!UID||!SB||pulling)return;pulling=true;
@@ -440,7 +528,7 @@ async function pullAll(){
       for(const d of all)if(!isDirty(d.id))applyDoc(d.id,d.data);
       for(const id of [...pend.keys(),...busy]){
         if(id==='s'){S.settings=old.settings;S.agendas=old.agendas;continue}
-        const bag={d_:'days',n_:'notes',r_:'reminders'}[id.slice(0,2)],k=id.slice(2);
+        const bag=BAGS[id.slice(0,2)],k=id.slice(2);
         if(bag&&old[bag][k])S[bag][k]=old[bag][k];
       }
     }
@@ -460,7 +548,7 @@ function startUser(user){
   if(UID===user.id)return;
   UID=user.id;UI.email=user.email;LS='folha-semanal-'+UID;
   S=fresh();loadLocal();loadPend();ensureAgenda();if(UI.auth!=='reset')hideAuth();render();checkReminders();
-  pullAll().then(flush);subscribe();
+  pullAll().then(()=>{flush();resumeMeetings()});subscribe();
 }
 function stopUser(){
   try{localStorage.removeItem(LS);localStorage.removeItem(PK())}catch(e){}
@@ -529,8 +617,8 @@ document.addEventListener('submit',async e=>{
 /* ---------- rich text: sanitize what is stored, convert old plain text ---------- */
 const OK_TAGS=new Set(['DIV','P','BR','B','STRONG','I','EM','U','S','STRIKE','SPAN','FONT','OL','UL','LI','IMG']);
 const OK_CSS=['color','background-color','font-family','font-weight','font-style','text-decoration','text-decoration-line','text-align'];
-const OK_CLS=new Set(['task','att','rem','s','m','g']);
-const OK_DATA=new Set(['data-done','data-id','data-name','data-size','data-type','data-rid']);
+const OK_CLS=new Set(['task','att','rem','mt','s','m','g']);
+const OK_DATA=new Set(['data-done','data-id','data-name','data-size','data-type','data-rid','data-mid']);
 const safeUrl=u=>{u=String(u||'').trim();return /^(https:\/\/|\/_blob\/|data:image\/(png|jpe?g|gif|webp);base64,)/i.test(u)?u:''};
 const DROP=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','TEMPLATE','LINK','META']);
 function clean(html){
@@ -627,10 +715,11 @@ function sortedNotes(){
   return a.sort(cmp);
 }
 function notesView(){
+  if(UI.notesTab==='meet')return meetingsView();
   const list=sortedNotes(),lbl=(SORTS.find(x=>x[0]===S.settings.sort)||SORTS[0])[1];
   const cards=list.map(([id,n])=>{const t=noteTitle(n),body=n.title?n.body:(n.body||'').replace(t,'').trim();
     return `<button class="ncard" data-act="note" data-id="${id}">${n.c?`<span class="ndot" style="background:var(--n${n.c})"></span>`:''}<b>${esc(t)}</b><p>${esc(body)}</p><small>${new Date(n.u||Date.now()).toLocaleDateString('pt-BR',{day:'numeric',month:'short'})}</small></button>`}).join('');
-  return `<div class="nhead"><h2>Notas</h2><button class="chip" data-act="sort">${ic('sort')}${lbl}</button></div>
+  return `<div class="nhead">${notesTabs()}<button class="chip" data-act="sort">${ic('sort')}${lbl}</button></div>
   <main id="main" class="notes">${list.length?`<div class="nlist">${cards}</div>`:`<p class="empty">Este bloco de notas está vazio. Toque em “Adicionar nota” para começar.</p>`}</main>
   <button class="fab" data-act="addNote">${ic('plus')}Adicionar nota</button>`;
 }
@@ -642,6 +731,7 @@ function render(){
     ${notes?'':`<button class="ib" data-act="goto" aria-label="Ir para uma data">${ic('cal')}</button>`}
     <div class="sp"></div>
     <button class="ib" data-act="search" aria-label="Buscar">${ic('search')}</button>
+    ${notes?'':`<button class="ib recbtn${MR?' live':''}" data-act="meet" aria-label="Gravar reunião" title="Gravar reunião">${ic('rec')}</button>`}
     ${notes?'':`<button class="ib" data-act="view" aria-label="Organização das folhas">${ic('grid')}</button>`}
     <button class="ib" data-act="mode" aria-label="${notes?'Voltar às folhas':'Abrir notas'}">${ic(notes?'book':'note')}</button>
     ${notes?'':`<button class="agbtn" data-act="agenda" aria-label="Trocar de agenda"><small>Agenda</small><span>${esc(S.agendas[s.agenda].name)}</span></button>`}
@@ -953,6 +1043,11 @@ function settingsHTML(){
     ${rems.length?rems.map(([id,r])=>`<div class="row"><div class="lbl"><span>${esc(r.title)}</span><small>${new Date(r.when).toLocaleString('pt-BR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}${r.rep!=='once'?' · '+REPS.find(x=>x[0]===r.rep)[1].toLowerCase():''}</small></div><button class="del" data-act="editRem" data-id="${id}" aria-label="Editar lembrete">${ic('pen')}</button></div>`).join('')
       :'<div class="row"><div class="lbl"><small>Nenhum lembrete. Selecione um texto na folha e toque no sino da barra de formatação.</small></div></div>'}
   </div></section>
+  <section class="grp"><h3>Memória de reunião</h3><div class="card">
+    <div class="row"><div class="lbl"><span>Seu nome</span></div><input class="agin" id="sig-name" data-sig="sigName" value="${esc(s.sigName||'')}" placeholder="Para assinar a memória" aria-label="Seu nome"></div>
+    <div class="row"><div class="lbl"><span>Cargo ou função</span></div><input class="agin" id="sig-role" data-sig="sigRole" value="${esc(s.sigRole||'')}" placeholder="Ex.: Assistente social" aria-label="Cargo ou função"></div>
+    <div class="row"><div class="lbl"><span>Unidade ou órgão</span></div><input class="agin" id="sig-unit" data-sig="sigUnit" value="${esc(s.sigUnit||'')}" placeholder="Ex.: CRAS Vicente de Carvalho" aria-label="Unidade ou órgão"></div>
+  </div><p class="note-sm">Esses dados aparecem no fim de cada memória de reunião gerada.</p></section>
   <section class="grp"><h3>Agendas</h3><div class="card">
     ${ags.map(([id,a])=>`<div class="row"><input class="agin" id="ag-${id}" data-ag="${id}" value="${esc(a.name)}" aria-label="Nome da agenda">${ags.length>1?`<button class="del" data-act="delAg" data-id="${id}" aria-label="Excluir agenda ${esc(a.name)}">${ic('trash')}</button>`:''}</div>`).join('')}
     <div class="row"><button class="addrow" data-act="newAg">${ic('plus')}Nova agenda</button></div>
@@ -1037,10 +1132,11 @@ const ACT={
 };
 /* tapping inside sheets: checkboxes, attachments, images, reminder marks */
 function inTaskBox(e){const t=e.target.closest&&e.target.closest('.ed .task');if(!t)return null;const r=t.getBoundingClientRect(),pl=parseFloat(getComputedStyle(t).paddingLeft);return e.clientX-r.left<pl&&e.clientX>=r.left-2?t:null}
-document.addEventListener('pointerdown',e=>{const ed=e.target.closest&&e.target.closest('.ed');UI.wasFocused=!!(ed&&ed.contains(document.activeElement));if(inTaskBox(e)||(e.target.closest&&e.target.closest('.ed .att')))e.preventDefault()});
+document.addEventListener('pointerdown',e=>{const ed=e.target.closest&&e.target.closest('.ed');UI.wasFocused=!!(ed&&ed.contains(document.activeElement));if(inTaskBox(e)||(e.target.closest&&e.target.closest('.ed .att,.ed .mt')))e.preventDefault()});
 document.addEventListener('click',e=>{
   const t=inTaskBox(e);if(t){e.preventDefault();toggleTask(t);return}
   const chip=e.target.closest('.ed .att');if(chip){e.preventDefault();chipMenu(chip);return}
+  const mt=e.target.closest('.ed .mt');if(mt){e.preventDefault();openMeeting(mt.dataset.mid);return}
   const img=e.target.closest('.ed img');if(img){imgMenu(img);return}
   const rm=e.target.closest('.ed .rem');if(rm&&S.reminders[rm.dataset.rid]&&(S.settings.readonly||e.detail>1||!UI.wasFocused)){openReminder(rm.dataset.rid);return}
   const b=e.target.closest('[data-act]');if(b&&ACT[b.dataset.act])ACT[b.dataset.act](b,e);
@@ -1050,6 +1146,7 @@ document.addEventListener('keydown',e=>{
   if(ed&&e.key==='Enter'&&!e.shiftKey){const b=curBlock(ed);if(b&&b.classList&&b.classList.contains('task')&&!b.textContent.trim()){e.preventDefault();b.classList.remove('task');b.removeAttribute('data-done');if(!b.className)b.removeAttribute('class');saveEd(ed);syncTbState()}}
   if(ed&&(e.metaKey||e.ctrlKey)&&!e.altKey){const k=e.key.toLowerCase();if(k==='b'||k==='i'||k==='u'){e.preventDefault();UI.ed=ed;saveRange();exec({b:'bold',i:'italic',u:'underline'}[k])}}
   if(e.key!=='Escape')return;
+  if(UI.ov==='meetrec'||UI.ov==='meetproc')return;
   if(POP)closePop();else if(UI.ov==='note')ACT.closeNote();else if(UI.ov)closeOv();else if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
 });
 document.addEventListener('input',e=>{
@@ -1059,6 +1156,8 @@ document.addEventListener('input',e=>{
   if(t.dataset&&t.dataset.k){setDay(t.dataset.k,t.dataset.f,t.value);return}
   if(t.id==='q'){results(t.value);return}
   if((t.id==='nTitle'||t.id==='nBody')&&UI.note){const n=S.notes[UI.note];n[t.id==='nTitle'?'title':'body']=t.value;n.u=Date.now();queue('n_'+UI.note,n);return}
+  if(t.dataset&&t.dataset.sig){S.settings[t.dataset.sig]=t.value.trim();saveSettings();return}
+  if(t.dataset&&t.dataset.mm&&UI.meet){meetEdit(t);return}
   if(t.dataset&&t.dataset.ag&&S.agendas[t.dataset.ag]){S.agendas[t.dataset.ag].name=t.value.trim()||'Sem nome';saveSettings()}
 });
 /* paste as clean text-with-structure */
@@ -1086,6 +1185,353 @@ app.addEventListener('touchend',e=>{if(tx==null)return;const t=e.changedTouches[
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);flush()}else checkReminders()});
 addEventListener('pagehide',()=>{clearTimeout(timer);flush()});
 try{document.execCommand('defaultParagraphSeparator',false,'div')}catch(e){}
+
+/* ================= meetings: record → transcribe → report → memória ================= */
+const PART_SEC=600, SR=16000;
+let MR=null;            // live recording
+const UPQ=[];           // pending part uploads {mid, idx, blob, sec}
+let upBusy=false;
+const fmtClock=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;return(h?h+':'+pad(m):m)+':'+pad(r)};
+const brDate=k=>{if(!k)return'';const d=parse(k);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()};
+const nowHM=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())};
+const saveMeet=id=>{const m=S.meetings[id];if(m){m.u=Date.now();queue('m_'+id,m)}};
+const STATUS={rec:['Gravando','run'],up:['Enviando áudio','run'],tx:['Transcrevendo','run'],sum:['Gerando relatório','run'],done:['Pronta','ok'],err:['Com erro','err'],wait:['Aguardando','']};
+function meetDay(){
+  const ed=UI.ed&&UI.ed.isConnected&&UI.ed.dataset.k;const ds=ed&&ed.split('_')[1];
+  if(ds&&ds[0]!=='w')return ds;
+  if(S.settings.view==='7'&&key(monday(UI.cur))===key(monday(new Date())))return todayK();
+  return key(UI.cur);
+}
+function notesTabs(){return `<div class="ntabs" role="tablist"><button role="tab" class="${UI.notesTab==='meet'?'':'on'}" data-act="notesTab" data-v="notes">Notas</button><button role="tab" class="${UI.notesTab==='meet'?'on':''}" data-act="notesTab" data-v="meet">Reuniões</button></div>`}
+function meetingsView(){
+  const list=Object.entries(S.meetings).sort((a,b)=>((b[1].date||'')+(b[1].start||''))<((a[1].date||'')+(a[1].start||''))?-1:1);
+  const cards=list.map(([id,m])=>{const d=m.date?parse(m.date):new Date(m.at||Date.now()),st=STATUS[m.status]||STATUS.wait;
+    return `<button class="mcard" data-act="meetOpen" data-id="${id}"><span class="md"><b>${d.getDate()}</b><small>${MES_C[d.getMonth()]}</small></span><span class="mi"><b>${esc(m.title||(m.report&&m.report.titulo)||'Reunião')}</b><span>${esc([m.start&&m.end?m.start+'–'+m.end:m.start,m.local].filter(Boolean).join(' · ')||fmtClock(m.dur||0))}</span></span><span class="pill ${st[1]}">${st[0]}</span></button>`}).join('');
+  return `<div class="nhead">${notesTabs()}</div>
+  <main id="main" class="notes">${list.length?`<div class="mlist">${cards}</div>`:`<p class="empty">Nenhuma reunião gravada ainda. Toque em “Gravar reunião” para começar.</p>`}</main>
+  <button class="fab" data-act="meet">${ic('rec')}Gravar reunião</button>`;
+}
+
+/* --- step 1: details --- */
+function openMeetForm(){
+  if(MR){openRecView();return}
+  if(!SB||!UID){msg('Entre na sua conta para gravar reuniões.');return}
+  const day=meetDay();
+  openOv('meetform',`<header class="ov-h"><button class="ib" data-act="close" aria-label="Fechar">${ic('back')}</button><h2>Nova reunião</h2></header>
+  <div class="ov-body"><div class="form">
+    <label for="mTitle">Assunto</label><input id="mTitle" placeholder="Ex.: Reunião de rede CREAS" autocomplete="off">
+    <div class="two"><div><label for="mDate">Data</label><input id="mDate" type="date" value="${day}"></div><div><label for="mLocal">Local</label><input id="mLocal" placeholder="Opcional"></div></div>
+    <label for="mPart">Participantes</label><textarea id="mPart" rows="3" placeholder="Nomes e funções, um por linha (opcional — ajuda a IA a acertar os nomes)"></textarea>
+    <label for="mMails">E-mails para enviar a memória</label><input id="mMails" type="email" multiple inputmode="email" placeholder="Opcional, separados por vírgula">
+  </div>
+  <div class="btns"><button class="cta wide" data-act="meetStart">${ic('rec')}Começar a gravar</button><button class="ghost" data-act="meetImport">${ic('up')}Usar um áudio já gravado</button></div>
+  <p class="note-sm">Mantenha o app aberto e a tela ligada durante a gravação. O áudio é salvo em partes de 10 minutos na sua conta; depois o Mistral transcreve e escreve o relatório.</p></div>`);
+  $('#mTitle').focus();
+}
+function newMeetFromForm(){
+  const v=id=>($('#'+id)||{}).value||'';
+  const id='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  S.meetings[id]={title:v('mTitle').trim(),date:v('mDate')||todayK(),local:v('mLocal').trim(),participants:v('mPart').trim(),emails:v('mMails').trim(),
+    start:nowHM(),end:'',dur:0,parts:[],texts:[],status:'rec',at:Date.now(),agenda:S.settings.agenda};
+  return id;
+}
+
+/* --- step 2: recording with live MP3 encoding --- */
+async function startMeetRec(){
+  if(!window.lamejs){msg('O gravador ainda não carregou. Verifique a internet e tente de novo.');return}
+  if(!navigator.mediaDevices){msg('Este navegador não grava áudio.');return}
+  const AC=window.AudioContext||window.webkitAudioContext,ctx=new AC();ctx.resume().catch(()=>{});
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}})}
+  catch(e){try{ctx.close()}catch(x){}msg('Permita o uso do microfone para gravar a reunião.');return}
+  try{await ctx.resume()}catch(e){}
+  const id=newMeetFromForm();saveMeet(id);
+  const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1),mute=ctx.createGain();mute.gain.value=0;
+  src.connect(proc);proc.connect(mute);mute.connect(ctx.destination);
+  MR={id,stream,ctx,proc,src,ratio:ctx.sampleRate/SR,pos:0,enc:new lamejs.Mp3Encoder(1,SR,32),buf:[],partSamples:0,idx:0,
+      t0:Date.now(),pausedMs:0,pauseAt:0,paused:false,level:0,lock:null};
+  proc.onaudioprocess=e=>{
+    if(!MR||MR.paused)return;
+    const inp=e.inputBuffer.getChannelData(0),r=MR.ratio,n=Math.floor((inp.length-MR.pos)/r)+1,out=new Int16Array(Math.max(0,n));
+    let o=0,pos=MR.pos,peak=0;
+    while(pos<inp.length&&o<out.length){const a=Math.floor(pos),b=Math.min(inp.length,Math.max(a+1,Math.floor(pos+r)));let sum=0;for(let j=a;j<b;j++)sum+=inp[j];
+      const v=Math.max(-1,Math.min(1,sum/(b-a)));if(Math.abs(v)>peak)peak=Math.abs(v);out[o++]=v<0?v*32768:v*32767;pos+=r}
+    MR.pos=pos-inp.length;
+    const pcm=o===out.length?out:out.subarray(0,o),mp3=MR.enc.encodeBuffer(pcm);
+    if(mp3.length)MR.buf.push(new Uint8Array(mp3));
+    MR.partSamples+=pcm.length;MR.level=MR.level*.7+peak*.3;
+    if(MR.partSamples>=PART_SEC*SR)cutPart(false);
+  };
+  wakeOn();openRecView();render();
+  MR.tick=setInterval(updRecView,250);
+}
+function cutPart(final){
+  const tail=MR.enc.flush();if(tail.length)MR.buf.push(new Uint8Array(tail));
+  const sec=MR.partSamples/SR;
+  if(MR.buf.length&&sec>1){
+    const idx=MR.idx++,blob=new Blob(MR.buf,{type:'audio/mpeg'});
+    UPQ.push({mid:MR.id,idx,blob,sec});pumpUploads();
+  }
+  MR.buf=[];MR.partSamples=0;if(!final)MR.enc=new lamejs.Mp3Encoder(1,SR,32);
+}
+async function pumpUploads(){
+  if(upBusy)return;upBusy=true;
+  while(UPQ.length){
+    const u=UPQ[0],m=S.meetings[u.mid];if(!m){UPQ.shift();continue}
+    const path=`${UID}/reunioes/${u.mid}/parte-${pad(u.idx+1)}.mp3`;
+    const r=await SB.storage.from('anexos').upload(path,u.blob,{contentType:'audio/mpeg',upsert:true});
+    if(r.error){console.warn('upload',r.error);await new Promise(x=>setTimeout(x,5000));continue}
+    UPQ.shift();m.parts[u.idx]={path,sec:Math.round(u.sec)};saveMeet(u.mid);updRecView();
+  }
+  upBusy=false;
+}
+const pendingUploads=mid=>UPQ.filter(u=>u.mid===mid).length;
+async function wakeOn(){try{if(navigator.wakeLock&&MR)MR.lock=await navigator.wakeLock.request('screen')}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&MR)wakeOn()});
+const recElapsed=()=>MR?((MR.paused?MR.pauseAt:Date.now())-MR.t0-MR.pausedMs)/1000:0;
+function openRecView(){
+  const m=S.meetings[MR.id];
+  openOv('meetrec',`<div class="recview"><span class="pill run">${ic('rec')} Gravando reunião</span><h2>${esc(m.title||'Reunião sem assunto')}</h2>
+  <div class="bigt" id="rT">0:00</div><div class="lvl" aria-hidden="true"><i id="rL"></i></div><div class="recstate" id="rS"></div>
+  <div class="recctl"><button class="ghost" data-act="meetPause" id="rP">${ic('pause')}Pausar</button><button class="cta" data-act="meetStop">${ic('stop')}Encerrar e gerar relatório</button></div>
+  <button class="tbtn" data-act="meetDiscard" style="color:var(--danger)">Descartar gravação</button></div>`);
+  updRecView();
+}
+function updRecView(){
+  if(!MR||UI.ov!=='meetrec')return;
+  const t=$('#rT'),l=$('#rL'),st=$('#rS'),m=S.meetings[MR.id];
+  if(t)t.textContent=fmtClock(recElapsed());
+  if(l)l.style.width=Math.min(100,Math.round(MR.level*160))+'%';
+  if(st){const sent=(m.parts||[]).filter(Boolean).length,p=pendingUploads(MR.id);st.textContent=MR.paused?'Pausado':(sent?`${sent} parte${sent>1?'s':''} salva${sent>1?'s':''} na nuvem`:'Salvando a cada 10 minutos')+(p?` · enviando ${p}…`:'')}
+}
+function stopCapture(){
+  clearInterval(MR.tick);try{MR.proc.onaudioprocess=null;MR.src.disconnect();MR.proc.disconnect()}catch(e){}
+  MR.stream.getTracks().forEach(t=>t.stop());try{MR.ctx.close()}catch(e){}try{MR.lock&&MR.lock.release()}catch(e){}
+}
+async function finishMeetRec(){
+  if(!MR)return;const id=MR.id,m=S.meetings[id];
+  cutPart(true);m.dur=Math.round(recElapsed());m.end=nowHM();m.status='up';stopCapture();MR=null;saveMeet(id);
+  linkMeetingToDay(id);openProc(id);processMeeting(id);
+}
+async function discardMeetRec(){
+  if(!MR)return;const id=MR.id;stopCapture();MR=null;
+  for(let i=UPQ.length-1;i>=0;i--)if(UPQ[i].mid===id)UPQ.splice(i,1);
+  await deleteMeeting(id,true);closeOv();msg('Gravação descartada.');
+}
+
+/* --- importing an existing recording: decode, resample to 16 kHz, re-encode in 10-minute MP3 parts --- */
+async function importMeetAudio(file){
+  if(!file)return;if(!window.lamejs){msg('O conversor de áudio não carregou. Verifique a internet.');return}
+  const id=newMeetFromForm(),m=S.meetings[id];m.status='up';m.start='';m.title=m.title||file.name.replace(/\.[^.]+$/,'');saveMeet(id);
+  openProc(id,'Preparando o áudio…');
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;let ac;try{ac=new AC({sampleRate:SR})}catch(e){ac=new AC()}
+    const buf=await ac.decodeAudioData(await file.arrayBuffer());try{ac.close()}catch(e){}
+    const ch=buf.numberOfChannels,len=buf.length,ratio=buf.sampleRate/SR,outLen=Math.floor(len/ratio);
+    const d0=buf.getChannelData(0),d1=ch>1?buf.getChannelData(1):null;
+    m.dur=Math.round(outLen/SR);const per=PART_SEC*SR;let idx=0;
+    for(let start=0;start<outLen;start+=per){
+      const n=Math.min(per,outLen-start),pcm=new Int16Array(n);
+      for(let i=0;i<n;i++){const a=Math.floor((start+i)*ratio);let v=d0[a];if(d1)v=(v+d1[a])/2;v=Math.max(-1,Math.min(1,v));pcm[i]=v<0?v*32768:v*32767}
+      const enc=new lamejs.Mp3Encoder(1,SR,32),bufs=[];
+      for(let i=0;i<n;i+=11520){const b=enc.encodeBuffer(pcm.subarray(i,i+11520));if(b.length)bufs.push(new Uint8Array(b));if(i%(11520*40)===0){setProc(`Convertendo o áudio… ${Math.round((start+i)/outLen*100)}%`);await new Promise(r=>setTimeout(r,0))}}
+      const t=enc.flush();if(t.length)bufs.push(new Uint8Array(t));
+      UPQ.push({mid:id,idx:idx++,blob:new Blob(bufs,{type:'audio/mpeg'}),sec:n/SR});
+    }
+    pumpUploads();linkMeetingToDay(id);processMeeting(id);
+  }catch(e){console.warn(e);m.status='err';m.err='Não foi possível ler esse arquivo de áudio. Tente MP3, M4A ou WAV.';saveMeet(id);renderProc(id)}
+}
+
+/* --- step 3: transcription and report through the Supabase function --- */
+async function callFn(body){
+  const {data,error}=await SB.functions.invoke('reunioes',{body});
+  if(error){let j=null;try{j=await error.context.json()}catch(e){}throw j||{error:'network',detail:String(error.message||error)}}
+  return data;
+}
+const fnErr=e=>({missing_key:'A chave do Mistral ainda não foi colocada no Supabase.',mistral_key_invalid:'A chave do Mistral foi recusada. Confira se ela está certa no Supabase.',
+  mistral_rate_limit:'O Mistral pediu para esperar um pouco. Tente de novo em alguns minutos.',mistral_billing:'O Mistral recusou por falta de crédito na conta.',
+  not_authenticated:'Sua sessão expirou. Entre de novo.',empty_transcript:'Não foi possível entender fala nesse áudio.',network:'Sem conexão com o servidor. Verifique a internet.'}[e&&e.error]||
+  ('O processamento falhou'+(e&&e.status?` (código ${e.status})`:'')+'. Tente de novo.'));
+const RUNNING=new Set();
+async function processMeeting(id){
+  if(RUNNING.has(id))return;RUNNING.add(id);
+  const m=S.meetings[id];if(!m){RUNNING.delete(id);return}
+  m.err='';
+  try{
+    m.status='up';saveMeet(id);renderProc(id);
+    while(pendingUploads(id)){await new Promise(r=>setTimeout(r,800));renderProc(id)}
+    const parts=(m.parts||[]).filter(Boolean);
+    if(!parts.length)throw{error:'empty_transcript'};
+    m.status='tx';m.texts=m.texts||[];saveMeet(id);
+    let offset=0;
+    for(let i=0;i<m.parts.length;i++){
+      const p=m.parts[i];if(!p){continue}
+      if(!m.texts[i]){UI.procNote=`Transcrevendo parte ${i+1} de ${m.parts.length}…`;renderProc(id);
+        const r=await callFn({action:'transcribe',path:p.path,offset});m.texts[i]=r.text||'';m.speakers=m.speakers||r.speakers;saveMeet(id)}
+      offset+=p.sec||PART_SEC;
+    }
+    UI.procNote='';m.status='sum';saveMeet(id);renderProc(id);
+    const transcript=m.texts.filter(Boolean).join('\n\n');
+    const r=await callFn({action:'summarize',transcript,meta:{data:brDate(m.date),horario:m.start?(m.start+(m.end?' às '+m.end:'')):null,local:m.local,titulo:m.title,participantes:m.participants}});
+    m.report=r.report||{};if(!m.title&&m.report.titulo)m.title=m.report.titulo;
+    m.memo=buildMemo(m);m.status='done';saveMeet(id);linkMeetingToDay(id);
+    if(UI.ov==='meetproc'&&UI.meet===id)openMeeting(id,'resumo');else msg('Relatório da reunião pronto.');
+  }catch(e){console.warn('meeting',e);m.status='err';m.err=fnErr(e);saveMeet(id);renderProc(id)}
+  RUNNING.delete(id);if(UI.mode==='notes'&&!UI.ov)render();
+}
+function openProc(id,note){UI.meet=id;UI.procNote=note||'';openOv('meetproc','<div id="procBox"></div>');renderProc(id)}
+const setProc=t=>{UI.procNote=t;if(UI.meet)renderProc(UI.meet)};
+function renderProc(id){
+  if(UI.ov!=='meetproc'||UI.meet!==id)return;const m=S.meetings[id],box=$('#procBox');if(!m||!box)return;
+  const order=['up','tx','sum','done'],cur=order.indexOf(m.status);
+  const step=(k,label)=>{const i=order.indexOf(k);const cls=(m.status==='done'||(cur>=0&&i<cur))?'ok':i===cur?'on':'';return `<div class="step ${cls}"><i></i>${label}</div>`};
+  box.innerHTML=`<header class="ov-h"><button class="ib" data-act="close" aria-label="Fechar">${ic('back')}</button><h2>${esc(m.title||'Reunião')}</h2></header>
+  <div class="ov-body"><p class="note-sm" style="margin-top:0">${brDate(m.date)}${m.dur?' · '+fmtClock(m.dur)+' de áudio':''}</p>
+  <div class="steps">${step('up','Salvando o áudio na sua conta')}${step('tx','Transcrevendo com o Mistral')}${step('sum','Escrevendo resumo, pautas, pendências e memória')}</div>
+  <p class="recstate">${esc(m.status==='err'?'':UI.procNote||'')}</p>
+  ${m.status==='err'?`<p class="aerr" style="font-size:14px">${esc(m.err||'Algo deu errado.')}</p><div class="btns"><button class="cta wide" data-act="meetRetry" data-id="${id}">Tentar de novo</button></div>`:''}
+  <p class="note-sm">Pode fechar esta tela: o processamento continua enquanto o app estiver aberto. A reunião fica em Notas → Reuniões.</p></div>`;
+}
+
+/* --- report & memória --- */
+function buildMemo(m){
+  const r=m.report||{},s=S.settings,L=a=>Array.isArray(a)?a.filter(Boolean):[];
+  const parts=L(r.participantes).length?L(r.participantes):(m.participants||'').split(/\n|,|;/).map(x=>x.trim()).filter(Boolean);
+  const pautas=L(r.pautas),dec=L(r.decisoes),pend=L(r.pendencias);
+  let n=0;const sec=t=>`<h2>${++n}. ${t}</h2>`;
+  return `<h1>MEMÓRIA DE REUNIÃO</h1>
+<table class="mm-meta"><tbody>
+<tr><th>Assunto</th><td>${esc(m.title||r.titulo||'')}</td></tr>
+<tr><th>Data</th><td>${brDate(m.date)}</td></tr>
+${m.start?`<tr><th>Horário</th><td>${esc(m.start)}${m.end?' às '+esc(m.end):''}</td></tr>`:''}
+${m.local?`<tr><th>Local</th><td>${esc(m.local)}</td></tr>`:''}
+<tr><th>Participantes</th><td>${parts.length?parts.map(esc).join('<br>'):'Não registrados'}</td></tr>
+</tbody></table>
+${sec('Pauta')}${pautas.length?`<ol>${pautas.map(p=>`<li>${esc(p.tema||p)}</li>`).join('')}</ol>`:'<p>Não registrada.</p>'}
+${r.resumo?sec('Síntese')+`<p>${esc(r.resumo)}</p>`:''}
+${pautas.length?sec('Discussões')+pautas.map((p,i)=>`<h3>${n}.${i+1} ${esc(p.tema||'')}</h3><p>${esc(p.discussao||'')}</p>`).join(''):''}
+${sec('Deliberações')}${dec.length?`<ul>${dec.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`:'<p>Não houve deliberações registradas.</p>'}
+${sec('Encaminhamentos')}${pend.length?`<table class="mm-enc"><thead><tr><th>Ação</th><th>Responsável</th><th>Prazo</th></tr></thead><tbody>${pend.map(p=>`<tr><td>${esc(p.acao||'')}</td><td>${esc(p.responsavel||'—')}</td><td>${p.prazo?brDate(p.prazo):esc(p.prazo_texto||'—')}</td></tr>`).join('')}</tbody></table>`:'<p>Não houve encaminhamentos registrados.</p>'}
+${r.proxima_reuniao?sec('Próxima reunião')+`<p>${esc(r.proxima_reuniao)}</p>`:''}
+${r.observacoes?sec('Observações')+`<p>${esc(r.observacoes)}</p>`:''}
+<p class="mm-sign">${s.sigUnit?esc(s.sigUnit)+', ':''}${brDate(m.date)}.<br><br>Elaborado por: ${esc(s.sigName||'____________________')}${s.sigRole?' — '+esc(s.sigRole):''}</p>`;
+}
+const MEMO_TAGS=new Set(['H1','H2','H3','P','BR','B','STRONG','I','EM','U','UL','OL','LI','TABLE','THEAD','TBODY','TR','TH','TD','DIV','SPAN']);
+function cleanMemo(html){
+  const doc=new DOMParser().parseFromString('<body>'+(html||'')+'</body>','text/html');
+  const walk=el=>{for(const n of [...el.childNodes]){if(n.nodeType===3)continue;if(n.nodeType!==1||DROP.has(n.tagName.toUpperCase())){n.remove();continue}
+    if(!MEMO_TAGS.has(n.tagName)){walk(n);n.replaceWith(...n.childNodes);continue}
+    for(const a of [...n.attributes])if(!(a.name==='class'&&/^mm-(meta|enc|sign)$/.test(a.value))&&a.name!=='colspan')n.removeAttribute(a.name);walk(n)}};
+  walk(doc.body);return doc.body.innerHTML;
+}
+function openMeeting(id,tab){
+  const m=S.meetings[id];if(!m){msg('Essa reunião não existe mais.');return}
+  if(m.status!=='done'){openProc(id);if(m.status!=='err'&&!RUNNING.has(id))processMeeting(id);return}
+  UI.meet=id;UI.mtab=tab||UI.mtab||'resumo';
+  openOv('meet',`<header class="ov-h"><button class="ib" data-act="close" aria-label="Voltar">${ic('back')}</button><h2>${esc(m.title||'Reunião')}</h2><button class="ib" data-act="meetDel" aria-label="Excluir reunião">${ic('trash')}</button></header>
+  <div class="mtabs" role="tablist">${[['resumo','Resumo'],['memo','Memória'],['tx','Transcrição']].map(([k,l])=>`<button role="tab" class="${UI.mtab===k?'on':''}" data-act="mtab" data-v="${k}">${l}</button>`).join('')}</div>
+  <div class="mbody" id="mBody"></div>`);
+  renderMeetTab();
+}
+function renderMeetTab(){
+  const id=UI.meet,m=S.meetings[id],box=$('#mBody');if(!m||!box)return;const r=m.report||{},L=a=>Array.isArray(a)?a.filter(Boolean):[];
+  const when=`${brDate(m.date)}${m.start?' · '+m.start+(m.end?'–'+m.end:''):''}${m.local?' · '+esc(m.local):''}${m.dur?' · '+fmtClock(m.dur):''}`;
+  if(UI.mtab==='resumo'){
+    const pend=L(r.pendencias);
+    box.innerHTML=`<p class="note-sm" style="margin:0">${when}</p><div class="msec">
+    <h3>Resumo</h3><p>${esc(r.resumo||'—')}</p>
+    ${L(r.pautas).length?`<h3>Pautas</h3><ol>${L(r.pautas).map(p=>`<li><b>${esc(p.tema||'')}</b>${p.discussao?`<br><span style="color:var(--muted)">${esc(p.discussao)}</span>`:''}</li>`).join('')}</ol>`:''}
+    ${L(r.decisoes).length?`<h3>Decisões</h3><ul>${L(r.decisoes).map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`:''}
+    <h3>Pendências</h3>${pend.length?pend.map(p=>`<div class="pend">${ic('task')}<div><b>${esc(p.acao||'')}</b><small>${esc(p.responsavel||'Sem responsável definido')} · ${p.prazo?'até '+brDate(p.prazo):esc(p.prazo_texto||'sem prazo')}</small></div></div>`).join('')
+      +`<div class="mact"><button data-act="meetToSheets">${ic('task')}Levar pendências para as folhas</button></div>`:'<p>Nenhuma pendência registrada.</p>'}
+    ${r.proxima_reuniao?`<h3>Próxima reunião</h3><p>${esc(r.proxima_reuniao)}</p>`:''}
+    ${r.observacoes?`<h3>Observações</h3><p>${esc(r.observacoes)}</p>`:''}</div>`;
+  }else if(UI.mtab==='memo'){
+    box.innerHTML=`<div class="mact"><button data-act="memoShare">${ic('share')}Compartilhar</button><button data-act="memoMail">${ic('mail')}E-mail</button><button data-act="memoCopy">${ic('copy')}Copiar</button><button data-act="memoPdf">${ic('doc')}PDF</button><button data-act="memoWord">${ic('dl')}Word</button></div>
+    <div class="memo" id="memoEd" contenteditable="true" data-mm="1" spellcheck="true" aria-label="Memória da reunião (editável)">${cleanMemo(m.memo||buildMemo(m))}</div>
+    <div class="mact"><button data-act="memoRebuild">${ic('undo')}Refazer a memória a partir do relatório</button></div>
+    <p class="note-sm">Você pode editar o texto direto na folha acima. As mudanças são salvas sozinhas.</p>`;
+  }else{
+    const tx=(m.texts||[]).filter(Boolean).join('\n\n');
+    box.innerHTML=`<div class="mact"><button data-act="txCopy">${ic('copy')}Copiar transcrição</button><button data-act="txAudio">${ic('play')}Ouvir áudio</button></div>
+    <div id="audios" class="audios"></div><div class="tx">${esc(tx||'Sem transcrição.')}</div>
+    <p class="note-sm">A transcrição é automática e pode ter erros, principalmente em nomes próprios e falas sobrepostas.</p>`;
+  }
+}
+let memoT;
+function meetEdit(t){const id=UI.meet,m=S.meetings[id];if(!m)return;clearTimeout(memoT);memoT=setTimeout(()=>{m.memo=cleanMemo(t.innerHTML);m.memoEdited=true;saveMeet(id)},500)}
+function memoPlain(){
+  const el=$('#memoEd');if(!el)return'';const c=el.cloneNode(true),T=t=>document.createTextNode(t),tx=n=>n.textContent.replace(/[ \t]+/g,' ').trim();
+  c.querySelectorAll('br').forEach(b=>b.replaceWith(T(', ')));
+  c.querySelectorAll('tr').forEach(tr=>tr.replaceWith(T([...tr.children].map(td=>tx(td).replace(/,\s*$/,'')).join(' — ')+'\n')));
+  c.querySelectorAll('h1,h2').forEach(h=>h.replaceWith(T('\n'+tx(h).toUpperCase()+'\n')));
+  c.querySelectorAll('h3').forEach(h=>h.replaceWith(T('\n'+tx(h)+'\n')));
+  c.querySelectorAll('ol,ul').forEach(l=>{const ol=l.tagName==='OL';[...l.children].forEach((li,i)=>li.replaceWith(T((ol?(i+1)+'. ':'• ')+tx(li)+'\n')))});
+  c.querySelectorAll('p,div').forEach(p=>p.replaceWith(T(tx(p).replace(/^,\s*|,\s*,/g,'')+'\n')));
+  return c.textContent.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+function memoFileName(m,ext){return `Memoria de reuniao - ${(m.title||'reuniao').replace(/[\\/:*?"<>|]+/g,'').slice(0,60)} - ${brDate(m.date).replace(/\//g,'-')}.${ext}`}
+function memoDoc(m){
+  const html=cleanMemo($('#memoEd')?$('#memoEd').innerHTML:m.memo);
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Memória de reunião</title>
+<style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.4}h1{font-size:14pt;text-align:center}h2{font-size:12pt;border-bottom:1px solid #999;margin-top:14pt}h3{font-size:11pt}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4pt 6pt;text-align:left;vertical-align:top}th{background:#eee}</style></head><body>${html}</body></html>`;
+}
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+function linkMeetingToDay(id){
+  const m=S.meetings[id];if(!m||!m.date)return;const k=(m.agenda||S.settings.agenda)+'_'+m.date,cur=dayHtml(S.days[k]);
+  if(cur.includes(`data-mid="${id}"`)){const re=new RegExp(`(<span[^>]*data-mid="${id}"[^>]*>)[^<]*(</span>)`);const nx=cur.replace(re,`$1${esc('Reunião: '+(m.title||'sem assunto'))}$2`);if(nx!==cur)setDay(k,'t',nx);return}
+  const base=/^(<div><br><\/div>)*$/.test(cur)?'':cur;
+  setDay(k,'t',base+`<div><span class="mt" contenteditable="false" data-mid="${id}">${esc('Reunião: '+(m.title||'sem assunto'))}</span></div>`);
+  softRender();
+}
+function pendToSheets(){
+  const id=UI.meet,m=S.meetings[id],pend=((m.report||{}).pendencias||[]).filter(Boolean);let added=0;
+  for(const p of pend){
+    const day=p.prazo&&/^\d{4}-\d{2}-\d{2}$/.test(p.prazo)?p.prazo:m.date,k=(m.agenda||S.settings.agenda)+'_'+day;
+    const line=`${p.acao||''}${p.responsavel?' — '+p.responsavel:''} (reunião ${brDate(m.date)})`;
+    if(norm(dayText(S.days[k])).includes(norm(line)))continue;
+    const cur=dayHtml(S.days[k]),base=/^(<div><br><\/div>)*$/.test(cur)?'':cur;
+    setDay(k,'t',base+`<div class="task">${esc(line)}</div>`);added++;
+  }
+  msg(added?`${added} pendência${added>1?'s':''} colocada${added>1?'s':''} nas folhas, no dia do prazo (ou no dia da reunião, quando não há prazo).`:'Essas pendências já estão nas folhas.',5000);
+}
+async function deleteMeeting(id,silent){
+  const m=S.meetings[id];if(!m)return;
+  const paths=(m.parts||[]).filter(Boolean).map(p=>p.path);if(paths.length)try{await SB.storage.from('anexos').remove(paths)}catch(e){}
+  for(const [k,d] of Object.entries(S.days))if((d.t||'').includes(`data-mid="${id}"`)){const doc=new DOMParser().parseFromString('<body>'+d.t+'</body>','text/html');doc.querySelectorAll(`[data-mid="${id}"]`).forEach(s=>{const p=s.parentElement;s.remove();if(p&&p!==doc.body&&!p.textContent.trim()&&!p.querySelector('img,.att,.mt'))p.remove()});setDay(k,'t',doc.body.innerHTML)}
+  delete S.meetings[id];queue('m_'+id,null);
+}
+Object.assign(ACT,{
+  meet(){openMeetForm()},
+  meetStart(){startMeetRec()},
+  meetImport(){$('#fMeet').value='';$('#fMeet').click()},
+  meetPause(b){if(!MR)return;if(MR.paused){MR.pausedMs+=Date.now()-MR.pauseAt;MR.paused=false;b.innerHTML=ic('pause')+'Pausar'}else{MR.paused=true;MR.pauseAt=Date.now();b.innerHTML=ic('play')+'Continuar'}updRecView()},
+  meetStop(){finishMeetRec()},
+  meetDiscard(b){armed(b,'Toque de novo para descartar',discardMeetRec)},
+  meetOpen(b){openMeeting(b.dataset.id)},
+  meetRetry(b){processMeeting(b.dataset.id)},
+  notesTab(b){UI.notesTab=b.dataset.v;render()},
+  mtab(b){UI.mtab=b.dataset.v;document.querySelectorAll('.mtabs button').forEach(x=>x.classList.toggle('on',x===b));renderMeetTab()},
+  meetToSheets(){pendToSheets()},
+  meetDel(b){armed(b,'Excluir?',async()=>{await deleteMeeting(UI.meet);closeOv();msg('Reunião excluída.')})},
+  memoShare:async()=>{const m=S.meetings[UI.meet],text=memoPlain(),file=new File([memoDoc(m)],memoFileName(m,'doc'),{type:'application/msword'});
+    try{if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({title:'Memória de reunião',text,files:[file]});else if(navigator.share)await navigator.share({title:'Memória de reunião',text});else{await navigator.clipboard.writeText(text);msg('Este navegador não compartilha direto. A memória foi copiada.')}}catch(e){if(e&&e.name!=='AbortError')msg('Não foi possível compartilhar.')}},
+  memoMail(){const m=S.meetings[UI.meet],to=(m.emails||'').replace(/\s+/g,''),sub=`Memória de reunião – ${m.title||''} – ${brDate(m.date)}`;let body=memoPlain();if(body.length>1800)body=body.slice(0,1800)+'\n\n[continua — memória completa em anexo]';
+    location.href=`mailto:${encodeURIComponent(to).replace(/%2C/g,',')}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
+    if((memoPlain()).length>1800)msg('Texto longo: anexe também o arquivo Word ou PDF ao e-mail.',5000)},
+  memoCopy:async()=>{try{await navigator.clipboard.writeText(memoPlain());msg('Memória copiada.')}catch(e){msg('Não foi possível copiar.')}},
+  memoPdf(){const m=S.meetings[UI.meet];$('#print').innerHTML=`<div class="memo">${cleanMemo($('#memoEd').innerHTML)}</div>`;const t=document.title;document.title=memoFileName(m,'pdf').replace(/\.pdf$/,'');window.print();setTimeout(()=>{document.title=t;$('#print').innerHTML=''},1000)},
+  memoWord(){const m=S.meetings[UI.meet];download(new Blob([memoDoc(m)],{type:'application/msword'}),memoFileName(m,'doc'))},
+  memoRebuild(b){armed(b,'Toque de novo: suas edições serão substituídas',()=>{const m=S.meetings[UI.meet];m.memo=buildMemo(m);m.memoEdited=false;saveMeet(UI.meet);renderMeetTab()})},
+  txCopy:async()=>{try{await navigator.clipboard.writeText((S.meetings[UI.meet].texts||[]).join('\n\n'));msg('Transcrição copiada.')}catch(e){msg('Não foi possível copiar.')}},
+  txAudio:async()=>{const m=S.meetings[UI.meet],box=$('#audios');if(!box)return;box.innerHTML='Carregando…';
+    const urls=[];for(const p of (m.parts||[]).filter(Boolean)){const r=await SB.storage.from('anexos').createSignedUrl(p.path,3600);if(r.data)urls.push(r.data.signedUrl)}
+    box.innerHTML=urls.map((u,i)=>`<div><small>Parte ${i+1}</small><audio controls preload="none" src="${esc(u)}"></audio></div>`).join('')||'Áudio não encontrado.'}
+});
+$('#fMeet').addEventListener('change',e=>importMeetAudio(e.target.files[0]));
+/* resume unfinished processing when the app opens */
+function resumeMeetings(){for(const [id,m] of Object.entries(S.meetings))if(['up','tx','sum'].includes(m.status)&&!RUNNING.has(id)&&!MR&&(m.parts||[]).some(Boolean)&&!pendingUploads(id))processMeeting(id)}
+addEventListener('beforeunload',e=>{if(MR||UPQ.length){e.preventDefault();e.returnValue=''}});
 
 /* audio recording */
 let REC=null;
