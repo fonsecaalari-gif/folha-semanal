@@ -1,6 +1,6 @@
 // Guarda o app no aparelho para abrir rápido e funcionar sem internet.
 // Os dados (Supabase) nunca passam pelo cache.
-const CACHE = 'folha-semanal-v6';
+const CACHE = 'folha-semanal-v7';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -19,7 +19,7 @@ self.addEventListener('fetch', e => {
   if (!same && !cdn) return;
   const save = res => { if (res && (res.ok || res.type === 'opaque')) { const cp = res.clone(); caches.open(CACHE).then(c => c.put(r, cp)); } return res; };
   e.respondWith(same
-    ? fetch(r).then(save).catch(() => caches.match(r, { ignoreSearch: true }).then(m => m || caches.match('index.html')))
+    ? fetch(r, { cache: 'no-cache' }).then(save).catch(() => caches.match(r, { ignoreSearch: true }).then(m => m || caches.match('index.html')))
     : caches.match(r).then(m => m || fetch(r).then(save)));
 });
 self.addEventListener('notificationclick', e => {
