@@ -81,6 +81,8 @@ Regras:
 - Use apenas o que está na transcrição e nos dados informados. Não invente nomes, números, datas ou decisões.
 - A transcrição pode ter erros de reconhecimento de fala; corrija palavras óbvias pelo contexto, sem mudar o sentido.
 - Os falantes podem aparecer como "Pessoa 1", "Pessoa 2"; se o nome de alguém for dito, use o nome.
+- Nomes próprios costumam sair errados na transcrição. Se um nome soar parecido com o de um participante informado (ex.: "Ladis" e "Larissa"), use o nome do participante informado em todo o texto.
+- Em "pendencias", inclua toda tarefa combinada, mesmo que também apareça em "decisoes".
 - Prazos relativos ("sexta que vem", "até o fim do mês") devem ser convertidos para AAAA-MM-DD usando a data da reunião informada. Se não houver prazo, use null.
 - Escreva de forma objetiva e impessoal, adequada a uma memória de reunião oficial.
 - Listas vazias quando não houver itens.`;
