@@ -326,6 +326,10 @@ img{max-width:100%}
 .lvl{width:min(320px,80%);height:8px;border-radius:99px;background:var(--hover);overflow:hidden}
 .lvl i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
 .recstate{font-size:13px;color:var(--muted);min-height:1.3em}
+.recwarn{display:flex;flex-direction:column;align-items:center;gap:8px;background:color-mix(in srgb,var(--danger) 12%,var(--sheet));color:var(--ink);border:1px solid color-mix(in srgb,var(--danger) 40%,var(--sheet));border-radius:14px;padding:14px 16px;max-width:26em}
+.recwarn b{color:var(--danger);font-size:17px}
+.recwarn span{font-size:14px;line-height:1.45}
+.recwarn .cta{margin-top:4px}
 .recctl{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 .recctl .cta{margin:0}
 .steps{display:flex;flex-direction:column;gap:10px;background:var(--sheet);border-radius:12px;padding:16px;margin:10px 0}
@@ -558,7 +562,7 @@ function startUser(user){
   if(UID===user.id)return;
   UID=user.id;UI.email=user.email;LS='folha-semanal-'+UID;
   S=fresh();loadLocal();loadPend();ensureAgenda();if(UI.auth!=='reset')hideAuth();render();checkReminders();
-  pullAll().then(()=>{flush();resumeMeetings()});subscribe();
+  pullAll().then(()=>{flush();recoverInterrupted()});subscribe();
 }
 function stopUser(){
   try{localStorage.removeItem(LS);localStorage.removeItem(PK())}catch(e){}
@@ -1247,21 +1251,26 @@ function newMeetFromForm(){
 }
 
 /* --- step 2: recording with live MP3 encoding --- */
-async function startMeetRec(){
-  if(!window.lamejs){msg('O gravador ainda não carregou. Verifique a internet e tente de novo.');return}
-  if(!navigator.mediaDevices){msg('Este navegador não grava áudio.');return}
-  const AC=window.AudioContext||window.webkitAudioContext,ctx=new AC();ctx.resume().catch(()=>{});
-  let stream;
-  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}})}
-  catch(e){try{ctx.close()}catch(x){}msg('Permita o uso do microfone para gravar a reunião.');return}
-  try{await ctx.resume()}catch(e){}
-  const id=newMeetFromForm();saveMeet(id);
+/* --- local backup of audio not yet confirmed in the cloud (IndexedDB) --- */
+let IDBH=null;
+function idb(){return new Promise((res,rej)=>{if(IDBH)return res(IDBH);if(!window.indexedDB)return rej(new Error('no idb'));const r=indexedDB.open('folha-rec',1);r.onupgradeneeded=()=>r.result.createObjectStore('parts');r.onsuccess=()=>{IDBH=r.result;res(IDBH)};r.onerror=()=>rej(r.error)})}
+async function idbPut(k,v){try{const db=await idb();await new Promise((res,rej)=>{const t=db.transaction('parts','readwrite');t.objectStore('parts').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch(e){}}
+async function idbDel(k){try{const db=await idb();await new Promise(res=>{const t=db.transaction('parts','readwrite');t.objectStore('parts').delete(k);t.oncomplete=res;t.onerror=res})}catch(e){}}
+async function idbAll(){try{const db=await idb();return await new Promise(res=>{const out=[],t=db.transaction('parts','readonly'),c=t.objectStore('parts').openCursor();c.onsuccess=()=>{const cur=c.result;if(cur){out.push({k:cur.key,v:cur.value});cur.continue()}else res(out)};c.onerror=()=>res(out)})}catch(e){return[]}}
+const partKey=(mid,idx)=>`${UID}|${mid}|${idx}`;
+
+/* --- recording engine: MP3 encoding, saved to the cloud every minute --- */
+const SNAP_SEC=60;
+function attachCapture(ctx,stream){
   const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1),mute=ctx.createGain();mute.gain.value=0;
   src.connect(proc);proc.connect(mute);mute.connect(ctx.destination);
-  MR={id,stream,ctx,proc,src,ratio:ctx.sampleRate/SR,pos:0,enc:new lamejs.Mp3Encoder(1,SR,32),buf:[],partSamples:0,idx:0,
-      t0:Date.now(),pausedMs:0,pauseAt:0,paused:false,level:0,lock:null};
+  Object.assign(MR,{ctx,stream,src,proc,ratio:ctx.sampleRate/SR,pos:0,lastAudio:Date.now()});
+  stream.getAudioTracks().forEach(t=>{t.onended=()=>{if(MR&&MR.stream===stream)markInterrupted()}});
   proc.onaudioprocess=e=>{
-    if(!MR||MR.paused)return;
+    if(!MR||MR.proc!==proc)return;
+    MR.lastAudio=Date.now();
+    if(MR.interrupted)clearInterrupted();
+    if(MR.paused)return;
     const inp=e.inputBuffer.getChannelData(0),r=MR.ratio,n=Math.floor((inp.length-MR.pos)/r)+1,out=new Int16Array(Math.max(0,n));
     let o=0,pos=MR.pos,peak=0;
     while(pos<inp.length&&o<out.length){const a=Math.floor(pos),b=Math.min(inp.length,Math.max(a+1,Math.floor(pos+r)));let sum=0;for(let j=a;j<b;j++)sum+=inp[j];
@@ -1269,41 +1278,112 @@ async function startMeetRec(){
     MR.pos=pos-inp.length;
     const pcm=o===out.length?out:out.subarray(0,o),mp3=MR.enc.encodeBuffer(pcm);
     if(mp3.length)MR.buf.push(new Uint8Array(mp3));
-    MR.partSamples+=pcm.length;MR.level=MR.level*.7+peak*.3;
+    MR.partSamples+=pcm.length;MR.totalSamples+=pcm.length;MR.level=MR.level*.7+peak*.3;
     if(MR.partSamples>=PART_SEC*SR)cutPart(false);
+    else if(MR.partSamples-MR.snapSamples>=SNAP_SEC*SR)snapshotPart();
   };
+}
+function detachCapture(){
+  if(!MR)return;try{MR.proc.onaudioprocess=null;MR.src.disconnect();MR.proc.disconnect()}catch(e){}
+  try{MR.stream.getTracks().forEach(t=>{t.onended=null;t.stop()})}catch(e){}try{MR.ctx.close()}catch(e){}
+}
+async function openMic(){
+  const AC=window.AudioContext||window.webkitAudioContext,ctx=new AC();ctx.resume().catch(()=>{});
+  const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}}).catch(e=>{try{ctx.close()}catch(x){}throw e});
+  try{await ctx.resume()}catch(e){}
+  return{ctx,stream};
+}
+async function startMeetRec(){
+  if(!window.lamejs){msg('O gravador ainda não carregou. Verifique a internet e tente de novo.');return}
+  if(!navigator.mediaDevices){msg('Este navegador não grava áudio.');return}
+  let mic;try{mic=await openMic()}catch(e){msg('Permita o uso do microfone para gravar a reunião.');return}
+  const id=newMeetFromForm();saveMeet(id);
+  MR={id,enc:new lamejs.Mp3Encoder(1,SR,32),buf:[],partSamples:0,snapSamples:0,totalSamples:0,idx:0,
+      paused:false,level:0,lock:null,interrupted:false,gaps:[]};
+  attachCapture(mic.ctx,mic.stream);
   wakeOn();openRecView();render();
-  MR.tick=setInterval(updRecView,250);
+  MR.tick=setInterval(recWatch,250);
+  MR.backupT=setInterval(()=>{if(MR&&MR.buf.length)idbPut(partKey(MR.id,MR.idx),{uid:UID,mid:MR.id,idx:MR.idx,blob:new Blob(MR.buf,{type:'audio/mpeg'}),sec:MR.partSamples/SR,at:Date.now()})},15000);
+}
+function queueUpload(u){
+  const i=UPQ.findIndex(x=>x.mid===u.mid&&x.idx===u.idx&&!x.busy);
+  if(i>=0)UPQ[i]={...UPQ[i],...u};else UPQ.push(u);
+  pumpUploads();
+}
+function snapshotPart(){
+  if(!MR||!MR.buf.length)return;
+  MR.snapSamples=MR.partSamples;
+  const blob=new Blob(MR.buf,{type:'audio/mpeg'}),sec=MR.partSamples/SR;
+  queueUpload({mid:MR.id,idx:MR.idx,blob,sec,final:false});
+  idbPut(partKey(MR.id,MR.idx),{uid:UID,mid:MR.id,idx:MR.idx,blob,sec,at:Date.now()});
 }
 function cutPart(final){
   const tail=MR.enc.flush();if(tail.length)MR.buf.push(new Uint8Array(tail));
   const sec=MR.partSamples/SR;
   if(MR.buf.length&&sec>1){
-    const idx=MR.idx++,blob=new Blob(MR.buf,{type:'audio/mpeg'});
-    UPQ.push({mid:MR.id,idx,blob,sec});pumpUploads();
+    const idx=MR.idx,blob=new Blob(MR.buf,{type:'audio/mpeg'});
+    queueUpload({mid:MR.id,idx,blob,sec,final:true});
+    idbPut(partKey(MR.id,idx),{uid:UID,mid:MR.id,idx,blob,sec,at:Date.now()});
+    MR.idx++;
   }
-  MR.buf=[];MR.partSamples=0;if(!final)MR.enc=new lamejs.Mp3Encoder(1,SR,32);
+  MR.buf=[];MR.partSamples=0;MR.snapSamples=0;if(!final)MR.enc=new lamejs.Mp3Encoder(1,SR,32);
 }
 async function pumpUploads(){
   if(upBusy)return;upBusy=true;
   while(UPQ.length){
     const u=UPQ[0],m=S.meetings[u.mid];if(!m){UPQ.shift();continue}
+    u.busy=true;
     const path=`${UID}/reunioes/${u.mid}/parte-${pad(u.idx+1)}.mp3`;
     const r=await SB.storage.from('anexos').upload(path,u.blob,{contentType:'audio/mpeg',upsert:true});
-    if(r.error){console.warn('upload',r.error);await new Promise(x=>setTimeout(x,5000));continue}
-    UPQ.shift();m.parts[u.idx]={path,sec:Math.round(u.sec)};saveMeet(u.mid);updRecView();
+    if(r.error){console.warn('upload',r.error);u.busy=false;await new Promise(x=>setTimeout(x,5000));continue}
+    UPQ.shift();
+    const mm=S.meetings[u.mid];if(mm){mm.parts=mm.parts||[];const prev=mm.parts[u.idx];if(!prev||(prev.sec||0)<=Math.round(u.sec))mm.parts[u.idx]={path,sec:Math.round(u.sec)};saveMeet(u.mid,mm)}
+    if(u.final&&!UPQ.some(x=>x.mid===u.mid&&x.idx===u.idx))idbDel(u.key||partKey(u.mid,u.idx));
+    updRecView();
   }
   upBusy=false;
 }
 const pendingUploads=mid=>UPQ.filter(u=>u.mid===mid).length;
 async function wakeOn(){try{if(navigator.wakeLock&&MR)MR.lock=await navigator.wakeLock.request('screen')}catch(e){}}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&MR)wakeOn()});
-const recElapsed=()=>MR?((MR.paused?MR.pauseAt:Date.now())-MR.t0-MR.pausedMs)/1000:0;
+document.addEventListener('visibilitychange',()=>{
+  if(!MR)return;
+  if(document.hidden){snapshotPart();if(MR.buf.length)idbPut(partKey(MR.id,MR.idx),{uid:UID,mid:MR.id,idx:MR.idx,blob:new Blob(MR.buf,{type:'audio/mpeg'}),sec:MR.partSamples/SR,at:Date.now()});return}
+  wakeOn();try{MR.ctx.resume()}catch(e){}
+});
+const recElapsed=()=>MR?MR.totalSamples/SR:0;
+const savedSec=m=>(m.parts||[]).reduce((a,p)=>a+(p&&p.sec||0),0);
+function markInterrupted(){
+  if(!MR||MR.interrupted)return;
+  MR.interrupted=true;MR.intAt=MR.lastAudio||Date.now();snapshotPart();
+  try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}
+  openRecView();
+}
+function clearInterrupted(){
+  if(!MR||!MR.interrupted)return;
+  MR.gaps.push([MR.intAt,Date.now()]);MR.interrupted=false;openRecView();
+}
+function recWatch(){
+  if(!MR)return;
+  if(!document.hidden&&!MR.interrupted&&Date.now()-(MR.lastAudio||0)>3500)markInterrupted();
+  updRecView();
+}
+async function resumeMic(){
+  if(!MR)return;
+  const st=$('#rS');if(st)st.textContent='Religando o microfone…';
+  try{const mic=await openMic();detachCapture();attachCapture(mic.ctx,mic.stream);wakeOn();
+    setTimeout(()=>{if(MR&&Date.now()-MR.lastAudio>2500)msg('O microfone ainda não respondeu. Toque de novo em Continuar gravando.')},3000)}
+  catch(e){msg('Não foi possível religar o microfone. Verifique a permissão do microfone.')}
+}
+const hm=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())};
 function openRecView(){
-  const m=S.meetings[MR.id];
-  openOv('meetrec',`<div class="recview"><span class="pill run">${ic('rec')} Gravando reunião</span><h2>${esc(m.title||'Reunião sem assunto')}</h2>
-  <div class="bigt" id="rT">0:00</div><div class="lvl" aria-hidden="true"><i id="rL"></i></div><div class="recstate" id="rS"></div>
-  <div class="recctl"><button class="ghost" data-act="meetPause" id="rP">${ic('pause')}Pausar</button><button class="cta" data-act="meetStop">${ic('stop')}Encerrar e gerar relatório</button></div>
+  if(!MR)return;const m=S.meetings[MR.id];
+  openOv('meetrec',`<div class="recview">${MR.interrupted
+    ?`<div class="recwarn" role="alert"><b>A gravação parou</b><span>O celular desligou o microfone${MR.intAt?' às '+hm(MR.intAt):''} (tela bloqueada ou app em segundo plano). O que foi gravado até aqui está salvo.</span><button class="cta" data-act="meetResume">${ic('rec')}Continuar gravando</button></div>`
+    :`<span class="pill run">${ic('rec')} Gravando reunião</span>`}
+  <h2>${esc(m.title||'Reunião sem assunto')}</h2>
+  <div class="bigt" id="rT">${fmtClock(recElapsed())}</div><div class="lvl" aria-hidden="true"><i id="rL"></i></div><div class="recstate" id="rS"></div>
+  <div class="recctl"><button class="ghost" data-act="meetPause" id="rP">${ic(MR.paused?'play':'pause')}${MR.paused?'Continuar':'Pausar'}</button><button class="cta" data-act="meetStop">${ic('stop')}Encerrar e gerar relatório</button></div>
+  <p class="note-sm" style="max-width:26em">Deixe a tela ligada e o app aberto. Se o celular bloquear, a gravação para e o app avisa quando você voltar.</p>
   <button class="tbtn" data-act="meetDiscard" style="color:var(--danger)">Descartar gravação</button></div>`);
   updRecView();
 }
@@ -1311,22 +1391,39 @@ function updRecView(){
   if(!MR||UI.ov!=='meetrec')return;
   const t=$('#rT'),l=$('#rL'),st=$('#rS'),m=S.meetings[MR.id];
   if(t)t.textContent=fmtClock(recElapsed());
-  if(l)l.style.width=Math.min(100,Math.round(MR.level*160))+'%';
-  if(st){const sent=(m.parts||[]).filter(Boolean).length,p=pendingUploads(MR.id);st.textContent=MR.paused?'Pausado':(sent?`${sent} parte${sent>1?'s':''} salva${sent>1?'s':''} na nuvem`:'Salvando a cada 10 minutos')+(p?` · enviando ${p}…`:'')}
+  if(l)l.style.width=(MR.interrupted?0:Math.min(100,Math.round(MR.level*160)))+'%';
+  if(st&&!/Religando/.test(st.textContent)){const sv=savedSec(m),p=pendingUploads(MR.id);
+    st.textContent=MR.paused?'Pausado':(sv?`${fmtClock(sv)} salvos na nuvem`:'Salvando na nuvem a cada minuto')+(p?' · enviando…':'')}
 }
-function stopCapture(){
-  clearInterval(MR.tick);try{MR.proc.onaudioprocess=null;MR.src.disconnect();MR.proc.disconnect()}catch(e){}
-  MR.stream.getTracks().forEach(t=>t.stop());try{MR.ctx.close()}catch(e){}try{MR.lock&&MR.lock.release()}catch(e){}
-}
+function stopCapture(){clearInterval(MR.tick);clearInterval(MR.backupT);detachCapture();try{MR.lock&&MR.lock.release()}catch(e){}}
 async function finishMeetRec(){
   if(!MR)return;const id=MR.id,m=S.meetings[id];
-  cutPart(true);m.dur=Math.round(recElapsed());m.end=nowHM();m.status='up';stopCapture();MR=null;saveMeet(id);
+  if(MR.interrupted)clearInterrupted();
+  cutPart(true);m.dur=Math.round(recElapsed());m.end=nowHM();
+  m.gaps=MR.gaps.filter(g=>g[1]-g[0]>5000).map(g=>hm(g[0])+'–'+hm(g[1]));
+  m.status='up';stopCapture();MR=null;saveMeet(id,m);
   linkMeetingToDay(id);openProc(id);processMeeting(id);
 }
 async function discardMeetRec(){
-  if(!MR)return;const id=MR.id;stopCapture();MR=null;
+  if(!MR)return;const id=MR.id,n=MR.idx;stopCapture();MR=null;
   for(let i=UPQ.length-1;i>=0;i--)if(UPQ[i].mid===id)UPQ.splice(i,1);
+  for(let i=0;i<=n;i++)idbDel(partKey(id,i));
   await deleteMeeting(id,true);closeOv();msg('Gravação descartada.');
+}
+/* when the app opens: send audio left on this device, and close recordings that were cut off */
+async function recoverInterrupted(){
+  if(!UID)return;
+  for(const {k,v} of await idbAll()){
+    if(!v||v.uid!==UID||(MR&&MR.id===v.mid))continue;
+    if(!S.meetings[v.mid]){idbDel(k);continue}
+    queueUpload({mid:v.mid,idx:v.idx,blob:v.blob,sec:v.sec,final:true,key:k});
+  }
+  for(const [id,m] of Object.entries(S.meetings)){
+    if(m.status!=='rec'||(MR&&MR.id===id))continue;
+    if(Date.now()-(m.u||m.at||0)<3*60e3)continue;
+    m.interrupted=true;m.status='up';saveMeet(id,m);
+  }
+  resumeMeetings();
 }
 
 /* --- importing an existing recording: decode, resample to 16 kHz, re-encode in 10-minute MP3 parts --- */
@@ -1360,7 +1457,7 @@ async function callFn(body){
 }
 const fnErr=e=>({missing_key:'A chave do Mistral ainda não foi colocada no Supabase.',mistral_key_invalid:'A chave do Mistral foi recusada. Confira se ela está certa no Supabase.',
   mistral_rate_limit:'O Mistral pediu para esperar um pouco. Tente de novo em alguns minutos.',mistral_billing:'O Mistral recusou por falta de crédito na conta.',
-  not_authenticated:'Sua sessão expirou. Entre de novo.',empty_transcript:'Não foi possível entender fala nesse áudio.',no_audio:'O áudio desta reunião não chegou a ser salvo na nuvem.',network:'Sem conexão com o servidor. Verifique a internet.'}[e&&e.error]||
+  not_authenticated:'Sua sessão expirou. Entre de novo.',empty_transcript:'Não foi possível entender fala nesse áudio.',no_audio:'A gravação foi interrompida antes de salvar qualquer áudio, então não há o que transcrever.',network:'Sem conexão com o servidor. Verifique a internet.'}[e&&e.error]||
   ('O processamento falhou'+(e&&e.status?` (código ${e.status})`:'')+'. Tente de novo.'));
 const RUNNING=new Set();
 const PROG=new Map();   // id -> {conv, partT0, partEst, sumT0, sumEst}
@@ -1422,6 +1519,7 @@ async function processMeeting(id){
     if(!(m.parts||[]).some(Boolean))await recoverParts(id,m);
     const parts=(m.parts||[]).filter(Boolean);
     if(!parts.length)throw{error:'no_audio'};
+    if(!m.dur||m.interrupted)m.dur=Math.round(parts.reduce((a,p)=>a+(p.sec||0),0));
     m.status='tx';m.texts=m.texts||[];save();
     let offset=0;
     for(let i=0;i<m.parts.length;i++){
@@ -1435,7 +1533,10 @@ async function processMeeting(id){
     {const P=prog(id);P.sumT0=Date.now();P.sumEst=Math.min(60,10+transcript.length/1500)}
     UI.procNote='Escrevendo o relatório e a memória…';m.status='sum';save();renderProc(id);
     const r=await callFn({action:'summarize',transcript,meta:{data:brDate(m.date),horario:m.start?(m.start+(m.end?' às '+m.end:'')):null,local:m.local,titulo:m.title,participantes:m.participants}});
-    m.report=normReport(r.report);if(!m.title&&m.report.titulo)m.title=m.report.titulo;
+    m.report=normReport(r.report);
+    {const notes=[];if(m.interrupted)notes.push(`Gravação interrompida: o registro cobre ${fmtClock(m.dur||0)} de áudio salvo; o trecho seguinte não foi gravado.`);
+     if(m.gaps&&m.gaps.length)notes.push(`Houve interrupção na gravação (${m.gaps.join(', ')}); falas desse intervalo não foram registradas.`);
+     if(notes.length)m.report.observacoes=notes.join(' ')+(m.report.observacoes?' '+m.report.observacoes:'')}if(!m.title&&m.report.titulo)m.title=m.report.titulo;
     m.report._n=1;m.memo=buildMemo(m);m.status='done';save();
     RUNNING.delete(id);linkMeetingToDay(id);
     if(UI.ov==='meetproc'&&UI.meet===id)openMeeting(id,'resumo');
@@ -1572,7 +1673,8 @@ Object.assign(ACT,{
   meet(){openMeetForm()},
   meetStart(){startMeetRec()},
   meetImport(){$('#fMeet').value='';$('#fMeet').click()},
-  meetPause(b){if(!MR)return;if(MR.paused){MR.pausedMs+=Date.now()-MR.pauseAt;MR.paused=false;b.innerHTML=ic('pause')+'Pausar'}else{MR.paused=true;MR.pauseAt=Date.now();b.innerHTML=ic('play')+'Continuar'}updRecView()},
+  meetPause(){if(!MR)return;MR.paused=!MR.paused;if(!MR.paused)MR.lastAudio=Date.now();openRecView()},
+  meetResume(){resumeMic()},
   meetStop(){finishMeetRec()},
   meetDiscard(b){armed(b,'Toque de novo para descartar',discardMeetRec)},
   meetOpen(b){openMeeting(b.dataset.id)},
