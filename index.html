@@ -348,6 +348,20 @@ img{max-width:100%}
 @keyframes pshine{from{background-position:200% 0}to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.pbar i{animation:none;transition:none}}
 .mtabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.kindbtn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid var(--border);background:var(--sheet);border-radius:12px;padding:14px;margin-top:6px}
+.kindbtn:hover{border-color:var(--accent)}.kindbtn svg{color:var(--accent);width:26px;height:26px}
+.kindbtn span{display:flex;flex-direction:column;gap:2px}.kindbtn small{color:var(--muted);font-size:13px;line-height:1.35}
+.form select{font:inherit;font-size:16px;color:var(--ink);background:var(--sheet);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.consent{border:1px solid var(--border);border-radius:12px;padding:6px 12px 10px;margin:14px 0 0;background:var(--sheet)}
+.consent legend{font-size:13px;font-weight:600;color:var(--muted);padding:0 4px}
+.radio,.check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;cursor:pointer}
+.radio input,.check input{margin-top:3px;width:20px;height:20px;accent-color:var(--accent);flex:none}
+.radio span,.check span{display:flex;flex-direction:column;gap:2px;font-size:15px}.radio small,.check small{color:var(--muted);font-size:13px;line-height:1.35}
+.form .check{margin-top:10px}
+.revbox{background:var(--sheet);border-radius:12px;padding:12px 14px;margin:4px 0 8px}
+.kv{display:flex;flex-direction:column;background:var(--sheet);border-radius:12px;overflow:hidden}
+.kv>div{display:flex;justify-content:space-between;gap:12px;padding:9px 14px;border-top:1px solid var(--line);font-size:14px}
+.kv>div:first-child{border-top:0}.kv span{color:var(--muted)}.kv b{text-align:right;font-weight:600;overflow-wrap:anywhere}
 .mtabs button{border:0;background:none;padding:10px 12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .mtabs .on{color:var(--accent);border-bottom-color:var(--accent)}
 .mbody{flex:1;overflow:auto;min-height:0;padding:12px 2px 30px}
@@ -729,7 +743,7 @@ function sortedNotes(){
   return a.sort(cmp);
 }
 function notesView(){
-  if(UI.notesTab==='meet')return meetingsView();
+  if(UI.notesTab==='meet'||UI.notesTab==='atend')return meetingsView();
   const list=sortedNotes(),lbl=(SORTS.find(x=>x[0]===S.settings.sort)||SORTS[0])[1];
   const cards=list.map(([id,n])=>{const t=noteTitle(n),body=n.title?n.body:(n.body||'').replace(t,'').trim();
     return `<button class="ncard" data-act="note" data-id="${id}">${n.c?`<span class="ndot" style="background:var(--n${n.c})"></span>`:''}<b>${esc(t)}</b><p>${esc(body)}</p><small>${new Date(n.u||Date.now()).toLocaleDateString('pt-BR',{day:'numeric',month:'short'})}</small></button>`}).join('');
@@ -1216,14 +1230,15 @@ function meetDay(){
   if(S.settings.view==='7'&&key(monday(UI.cur))===key(monday(new Date())))return todayK();
   return key(UI.cur);
 }
-function notesTabs(){return `<div class="ntabs" role="tablist"><button role="tab" class="${UI.notesTab==='meet'?'':'on'}" data-act="notesTab" data-v="notes">Notas</button><button role="tab" class="${UI.notesTab==='meet'?'on':''}" data-act="notesTab" data-v="meet">Reuniões</button></div>`}
+function notesTabs(){const t=UI.notesTab||'notes';return `<div class="ntabs" role="tablist">${[['notes','Notas'],['meet','Reuniões'],['atend','Atendimentos']].map(([v,l])=>`<button role="tab" class="${t===v?'on':''}" data-act="notesTab" data-v="${v}">${l}</button>`).join('')}</div>`}
 function meetingsView(){
-  const list=Object.entries(S.meetings).sort((a,b)=>((b[1].date||'')+(b[1].start||''))<((a[1].date||'')+(a[1].start||''))?-1:1);
+  const at=UI.notesTab==='atend';
+  const list=Object.entries(S.meetings).filter(([,m])=>isAt(m)===at).sort((a,b)=>((b[1].date||'')+(b[1].start||''))<((a[1].date||'')+(a[1].start||''))?-1:1);
   const cards=list.map(([id,m])=>{const d=m.date?parse(m.date):new Date(m.at||Date.now()),st=STATUS[m.status]||STATUS.wait;
-    return `<button class="mcard" data-act="meetOpen" data-id="${id}"><span class="md"><b>${d.getDate()}</b><small>${MES_C[d.getMonth()]}</small></span><span class="mi"><b>${esc(m.title||(m.report&&m.report.titulo)||'Reunião')}</b><span>${esc([m.start&&m.end?m.start+'–'+m.end:m.start,m.local].filter(Boolean).join(' · ')||fmtClock(m.dur||0))}</span></span><span class="pill ${st[1]}">${st[0]}${RUNNING.has(id)?' '+meetPct(id)+'%':''}</span></button>`}).join('');
+    return `<button class="mcard" data-act="meetOpen" data-id="${id}"><span class="md"><b>${d.getDate()}</b><small>${MES_C[d.getMonth()]}</small></span><span class="mi"><b>${esc(isAt(m)?(m.person||'Atendimento'):(m.title||(m.report&&m.report.titulo)||'Reunião'))}</b><span>${esc(isAt(m)?[m.tipo,m.bairro].filter(Boolean).join(' · '):([m.start&&m.end?m.start+'–'+m.end:m.start,m.local].filter(Boolean).join(' · ')||fmtClock(m.dur||0)))}</span></span><span class="pill ${at&&m.status==='done'?(m.lancado?'ok':m.reviewed?'ok':'run'):st[1]}">${at&&m.status==='done'?(m.lancado?'Lançada':m.reviewed?'Revisada':'Revisar'):st[0]}${RUNNING.has(id)?' '+meetPct(id)+'%':''}</span></button>`}).join('');
   return `<div class="nhead">${notesTabs()}</div>
-  <main id="main" class="notes">${list.length?`<div class="mlist">${cards}</div>`:`<p class="empty">Nenhuma reunião gravada ainda. Toque em “Gravar reunião” para começar.</p>`}</main>
-  <button class="fab" data-act="meet">${ic('rec')}Gravar reunião</button>`;
+  <main id="main" class="notes">${list.length?`<div class="mlist">${cards}</div>`:`<p class="empty">${at?'Nenhum atendimento gravado ainda. Toque em “Gravar atendimento” para começar.':'Nenhuma reunião gravada ainda. Toque em “Gravar reunião” para começar.'}</p>`}</main>
+  <button class="fab" data-act="recKind" data-v="${at?'atend':'meet'}">${ic('rec')}${at?'Gravar atendimento':'Gravar reunião'}</button>`;
 }
 
 /* --- step 1: details --- */
@@ -1293,11 +1308,11 @@ async function openMic(){
   try{await ctx.resume()}catch(e){}
   return{ctx,stream};
 }
-async function startMeetRec(){
+async function startMeetRec(factory){factory=typeof factory==='function'?factory:newMeetFromForm;
   if(!window.lamejs){msg('O gravador ainda não carregou. Verifique a internet e tente de novo.');return}
   if(!navigator.mediaDevices){msg('Este navegador não grava áudio.');return}
   let mic;try{mic=await openMic()}catch(e){msg('Permita o uso do microfone para gravar a reunião.');return}
-  const id=newMeetFromForm();saveMeet(id);
+  const id=factory();saveMeet(id);
   MR={id,enc:new lamejs.Mp3Encoder(1,SR,32),buf:[],partSamples:0,snapSamples:0,totalSamples:0,idx:0,
       paused:false,level:0,lock:null,interrupted:false,gaps:[]};
   attachCapture(mic.ctx,mic.stream);
@@ -1429,7 +1444,7 @@ async function recoverInterrupted(){
 /* --- importing an existing recording: decode, resample to 16 kHz, re-encode in 10-minute MP3 parts --- */
 async function importMeetAudio(file){
   if(!file)return;if(!window.lamejs){msg('O conversor de áudio não carregou. Verifique a internet.');return}
-  const id=newMeetFromForm(),m=S.meetings[id];m.status='up';m.start='';m.title=m.title||file.name.replace(/\.[^.]+$/,'');saveMeet(id);
+  const id=(UI.importFactory||newMeetFromForm)(),m=S.meetings[id];UI.importFactory=null;m.status='up';m.start='';m.title=m.title||file.name.replace(/\.[^.]+$/,'');saveMeet(id);
   openProc(id,'Preparando o áudio…');
   try{
     const AC=window.AudioContext||window.webkitAudioContext;let ac;try{ac=new AC({sampleRate:SR})}catch(e){ac=new AC()}
@@ -1531,7 +1546,17 @@ async function processMeeting(id){
     const transcript=m.texts.filter(Boolean).join('\n\n');
     if(transcript.replace(/Pessoa \d+ \[[\d:]+\]:/g,'').trim().length<20)throw{error:'empty_transcript'};
     {const P=prog(id);P.sumT0=Date.now();P.sumEst=Math.min(60,10+transcript.length/1500)}
-    UI.procNote='Escrevendo o relatório e a memória…';m.status='sum';save();renderProc(id);
+    UI.procNote=isAt(m)?'Escrevendo a evolução do prontuário…':'Escrevendo o relatório e a memória…';m.status='sum';save();renderProc(id);
+    if(isAt(m)){
+      const r=await callFn({action:'atendimento',transcript,meta:{data:brDate(m.date),nome:m.person,bairro:m.bairro,tipo:m.tipo,local:m.localAt,consentimento:m.consent,tecnica:S.settings.sigName||'Larissa Fonseca'}});
+      m.report=normAtend(r.report);m.report._n=1;
+      if(m.interrupted||(m.gaps&&m.gaps.length))m.report.conferir.unshift('A gravação foi interrompida'+(m.gaps&&m.gaps.length?` (${m.gaps.join(', ')})`:'')+': parte do atendimento pode não estar no texto.');
+      m.memo=buildEvol(m);m.status='done';save();
+      RUNNING.delete(id);linkMeetingToDay(id);
+      if(m.delAudio)deleteAudio(id);
+      if(UI.ov==='meetproc'&&UI.meet===id)openMeeting(id,'evol');else{msg('Evolução do atendimento pronta.');if(UI.mode==='notes'&&!UI.ov)render()}
+      return;
+    }
     const r=await callFn({action:'summarize',transcript,meta:{data:brDate(m.date),horario:m.start?(m.start+(m.end?' às '+m.end:'')):null,local:m.local,titulo:m.title,participantes:m.participants}});
     m.report=normReport(r.report);
     {const notes=[];if(m.interrupted)notes.push(`Gravação interrompida: o registro cobre ${fmtClock(m.dur||0)} de áudio salvo; o trecho seguinte não foi gravado.`);
@@ -1554,10 +1579,10 @@ function renderProc(id){
   box.innerHTML=`<header class="ov-h"><button class="ib" data-act="close" aria-label="Fechar">${ic('back')}</button><h2>${esc(m.title||'Reunião')}</h2></header>
   <div class="ov-body"><p class="note-sm" style="margin-top:0">${brDate(m.date)}${m.dur?' · '+fmtClock(m.dur)+' de áudio':''}</p>
   ${m.status==='err'?'':`<div class="pbox"><div class="pnum"><b id="pbN">${meetPct(id)}%</b><span>${stageLabel(m)}</span></div><div class="pbar" role="progressbar" aria-label="Progresso do relatório" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${meetPct(id)}"><i id="pbI" style="width:${meetPct(id)}%"></i></div></div>`}
-  <div class="steps">${step('up','Salvando o áudio na sua conta')}${step('tx','Transcrevendo com o Mistral')}${step('sum','Escrevendo resumo, pautas, pendências e memória')}</div>
+  <div class="steps">${step('up','Salvando o áudio na sua conta')}${step('tx','Transcrevendo com o Mistral')}${step('sum',isAt(m)?'Escrevendo a evolução, os dados da RMA e o Diário':'Escrevendo resumo, pautas, pendências e memória')}</div>
   <p class="recstate">${esc(m.status==='err'?'':UI.procNote||'')}</p>
   ${m.status==='err'?`<p class="aerr" style="font-size:14px">${esc(m.err||'Algo deu errado.')}</p><div class="btns"><button class="cta wide" data-act="meetRetry" data-id="${id}">Tentar de novo</button></div>`:''}
-  <p class="note-sm">Pode fechar esta tela: o processamento continua enquanto o app estiver aberto. A reunião fica em Notas → Reuniões.</p></div>`;
+  <p class="note-sm">Pode fechar esta tela: o processamento continua enquanto o app estiver aberto. ${isAt(m)?'O atendimento fica em Notas → Atendimentos.':'A reunião fica em Notas → Reuniões.'}</p></div>`;
 }
 
 /* --- report & memória --- */
@@ -1593,16 +1618,18 @@ function cleanMemo(html){
 }
 function openMeeting(id,tab){
   const m=S.meetings[id];if(!m){msg('Essa reunião não existe mais.');return}
-  if(m.status==='done'&&m.report&&!m.report._n){m.report={...normReport(m.report),_n:1};if(!m.memoEdited)m.memo=buildMemo(m);saveMeet(id,m)}
+  if(!isAt(m)&&m.status==='done'&&m.report&&!m.report._n){m.report={...normReport(m.report),_n:1};if(!m.memoEdited)m.memo=buildMemo(m);saveMeet(id,m)}
   if(m.status!=='done'){openProc(id);if(m.status!=='err'&&!RUNNING.has(id))processMeeting(id);return}
-  UI.meet=id;UI.mtab=tab||UI.mtab||'resumo';
-  openOv('meet',`<header class="ov-h"><button class="ib" data-act="close" aria-label="Voltar">${ic('back')}</button><h2>${esc(m.title||'Reunião')}</h2><button class="ib" data-act="meetDel" aria-label="Excluir reunião">${ic('trash')}</button></header>
-  <div class="mtabs" role="tablist">${[['resumo','Resumo'],['memo','Memória'],['tx','Transcrição']].map(([k,l])=>`<button role="tab" class="${UI.mtab===k?'on':''}" data-act="mtab" data-v="${k}">${l}</button>`).join('')}</div>
+  const tabs=isAt(m)?[['evol','Evolução'],['rma','Planilha e Diário'],['tx','Transcrição']]:[['resumo','Resumo'],['memo','Memória'],['tx','Transcrição']];
+  UI.meet=id;UI.mtab=tab&&tabs.some(t=>t[0]===tab)?tab:tabs.some(t=>t[0]===UI.mtab)?UI.mtab:tabs[0][0];
+  openOv('meet',`<header class="ov-h"><button class="ib" data-act="close" aria-label="Voltar">${ic('back')}</button><h2>${esc(m.title||'Reunião')}</h2><button class="ib" data-act="meetDel" aria-label="Excluir">${ic('trash')}</button></header>
+  <div class="mtabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" class="${UI.mtab===k?'on':''}" data-act="mtab" data-v="${k}">${l}</button>`).join('')}</div>
   <div class="mbody" id="mBody"></div>`);
   renderMeetTab();
 }
 function renderMeetTab(){
   const id=UI.meet,m=S.meetings[id],box=$('#mBody');if(!m||!box)return;const r=m.report||{},L=a=>Array.isArray(a)?a.filter(Boolean):[];
+  if(isAt(m)&&UI.mtab!=='tx'){renderAtendTab(box,m);return}
   const when=`${brDate(m.date)}${m.start?' · '+m.start+(m.end?'–'+m.end:''):''}${m.local?' · '+esc(m.local):''}${m.dur?' · '+fmtClock(m.dur):''}`;
   if(UI.mtab==='resumo'){
     const pend=L(r.pendencias);
@@ -1621,7 +1648,8 @@ function renderMeetTab(){
     <p class="note-sm">Você pode editar o texto direto na folha acima. As mudanças são salvas sozinhas.</p>`;
   }else{
     const tx=(m.texts||[]).filter(Boolean).join('\n\n');
-    box.innerHTML=`<div class="mact"><button data-act="txCopy">${ic('copy')}Copiar transcrição</button><button data-act="txAudio">${ic('play')}Ouvir áudio</button></div>
+    const cons=isAt(m)?`<p class="note-sm" style="margin:0 0 6px">${m.consent==='ditado'?'Ditado da técnica, sem a pessoa atendida.':'Gravado com autorização da pessoa atendida, registrada em '+new Date(m.consentAt||m.at).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})+'.'}${m.audioDeleted?' O áudio já foi apagado.':''}</p>`:'';
+    box.innerHTML=cons+`<div class="mact"><button data-act="txCopy">${ic('copy')}Copiar transcrição</button>${m.audioDeleted?'':`<button data-act="txAudio">${ic('play')}Ouvir áudio</button>`}${isAt(m)?`<button data-act="txDel">${ic('trash')}Apagar transcrição${m.audioDeleted?'':' e áudio'}</button>`:''}</div>
     <div id="audios" class="audios"></div><div class="tx">${esc(tx||'Sem transcrição.')}</div>
     <p class="note-sm">A transcrição é automática e pode ter erros, principalmente em nomes próprios e falas sobrepostas.</p>`;
   }
@@ -1638,18 +1666,18 @@ function memoPlain(){
   c.querySelectorAll('p,div').forEach(p=>p.replaceWith(T(tx(p).replace(/^,\s*|,\s*,/g,'')+'\n')));
   return c.textContent.replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
 }
-function memoFileName(m,ext){return `Memoria de reuniao - ${(m.title||'reuniao').replace(/[\\/:*?"<>|]+/g,'').slice(0,60)} - ${brDate(m.date).replace(/\//g,'-')}.${ext}`}
+function memoFileName(m,ext){if(isAt(m))return `Evolucao - ${(m.person||'atendimento').replace(/[\\/:*?"<>|]+/g,'').slice(0,60)} - ${brDate(m.date).replace(/\//g,'-')}.${ext}`;return `Memoria de reuniao - ${(m.title||'reuniao').replace(/[\\/:*?"<>|]+/g,'').slice(0,60)} - ${brDate(m.date).replace(/\//g,'-')}.${ext}`}
 function memoDoc(m){
   const html=cleanMemo($('#memoEd')?$('#memoEd').innerHTML:m.memo);
-  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>Memória de reunião</title>
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${isAt(m)?'Evolução de prontuário':'Memória de reunião'}</title>
 <style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.4}h1{font-size:14pt;text-align:center}h2{font-size:12pt;border-bottom:1px solid #999;margin-top:14pt}h3{font-size:11pt}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4pt 6pt;text-align:left;vertical-align:top}th{background:#eee}</style></head><body>${html}</body></html>`;
 }
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
 function linkMeetingToDay(id){
   const m=S.meetings[id];if(!m||!m.date)return;const k=(m.agenda||S.settings.agenda)+'_'+m.date,cur=dayHtml(S.days[k]);
-  if(cur.includes(`data-mid="${id}"`)){const re=new RegExp(`(<span[^>]*data-mid="${id}"[^>]*>)[^<]*(</span>)`);const nx=cur.replace(re,`$1${esc('Reunião: '+(m.title||'sem assunto'))}$2`);if(nx!==cur)setDay(k,'t',nx);return}
+  if(cur.includes(`data-mid="${id}"`)){const re=new RegExp(`(<span[^>]*data-mid="${id}"[^>]*>)[^<]*(</span>)`);const lbl=isAt(m)?m.title:'Reunião: '+(m.title||'sem assunto');const nx=cur.replace(re,`$1${esc(lbl)}$2`);if(nx!==cur)setDay(k,'t',nx);return}
   const base=/^(<div><br><\/div>)*$/.test(cur)?'':cur;
-  setDay(k,'t',base+`<div><span class="mt" contenteditable="false" data-mid="${id}">${esc('Reunião: '+(m.title||'sem assunto'))}</span></div>`);
+  setDay(k,'t',base+`<div><span class="mt" contenteditable="false" data-mid="${id}">${esc(isAt(m)?m.title:'Reunião: '+(m.title||'sem assunto'))}</span></div>`);
   softRender();
 }
 function pendToSheets(){
@@ -1669,10 +1697,134 @@ async function deleteMeeting(id,silent){
   for(const [k,d] of Object.entries(S.days))if((d.t||'').includes(`data-mid="${id}"`)){const doc=new DOMParser().parseFromString('<body>'+d.t+'</body>','text/html');doc.querySelectorAll(`[data-mid="${id}"]`).forEach(s=>{const p=s.parentElement;s.remove();if(p&&p!==doc.body&&!p.textContent.trim()&&!p.querySelector('img,.att,.mt'))p.remove()});setDay(k,'t',doc.body.innerHTML)}
   delete S.meetings[id];queue('m_'+id,null);
 }
+/* ================= atendimentos (PAIF): gravação → evolução de prontuário, RMA e Diário ================= */
+const TIPOS_AT=['Atendimento particularizado','Visita domiciliar','Contato telefônico','Busca ativa','Grupo / oficina','Discussão de caso','Outro'];
+const LOCAIS_AT=['CRAS','Domicílio','Outro'];
+const isAt=m=>m&&m.kind==='atend';
+function openRecChooser(){
+  if(MR){openRecView();return}
+  if(!SB||!UID){msg('Entre na sua conta para gravar.');return}
+  openOv('kind',`<div class="dlg"><h2>O que você vai gravar?</h2>
+    <button class="kindbtn" data-act="recKind" data-v="meet">${ic('doc')}<span><b>Reunião</b><small>Resumo, pautas, pendências e memória da reunião</small></span></button>
+    <button class="kindbtn" data-act="recKind" data-v="atend">${ic('pen')}<span><b>Atendimento</b><small>Evolução do prontuário, dados da planilha RMA e linha do Diário</small></span></button>
+    <div class="dlg-f"><button class="tbtn" data-act="close">Cancelar</button></div></div>`,true);
+}
+function openAtendForm(){
+  const day=meetDay();
+  openOv('atendform',`<header class="ov-h"><button class="ib" data-act="close" aria-label="Fechar">${ic('back')}</button><h2>Novo atendimento</h2></header>
+  <div class="ov-body"><div class="form">
+    <label for="aNome">Pessoa atendida (responsável familiar)</label><input id="aNome" placeholder="Nome completo" autocomplete="off">
+    <div class="two"><div><label for="aDate">Data</label><input id="aDate" type="date" value="${day}"></div><div><label for="aBairro">Bairro</label><input id="aBairro" placeholder="Opcional"></div></div>
+    <div class="two"><div><label for="aTipo">Tipo</label><select id="aTipo">${TIPOS_AT.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div><label for="aLocal">Local</label><select id="aLocal">${LOCAIS_AT.map(t=>`<option>${t}</option>`).join('')}</select></div></div>
+    <fieldset class="consent"><legend>Gravação</legend>
+      <label class="radio"><input type="radio" name="aCons" value="consent" id="aConsY"><span><b>A pessoa atendida autorizou a gravação</b><small>Explique que o áudio serve só para redigir a evolução e será apagado em seguida.</small></span></label>
+      <label class="radio"><input type="radio" name="aCons" value="ditado" id="aConsD"><span><b>É um ditado meu, sem a pessoa atendida</b><small>Você relata o atendimento depois que a pessoa sair.</small></span></label>
+    </fieldset>
+    <label class="check"><input type="checkbox" id="aDel" checked><span>Apagar o áudio assim que a evolução ficar pronta</span></label>
+  </div>
+  <div class="btns"><button class="cta wide" data-act="atendStart">${ic('rec')}Começar a gravar</button><button class="ghost" data-act="atendImport">${ic('up')}Usar um áudio já gravado</button></div>
+  <p class="note-sm">O áudio passa pelo Mistral para virar texto. Atendimentos envolvem sigilo profissional e dados sensíveis: grave só com a autorização da pessoa e conforme a orientação da sua coordenação.</p></div>`);
+  $('#aNome').focus();
+}
+function atendFormOk(){
+  const c=document.querySelector('input[name="aCons"]:checked');
+  if(!($('#aNome').value||'').trim()){msg('Escreva o nome da pessoa atendida.');$('#aNome').focus();return false}
+  if(!c){msg('Marque se a pessoa autorizou a gravação ou se é um ditado seu.');return false}
+  return true;
+}
+function newAtendFromForm(){
+  const v=id=>($('#'+id)||{}).value||'',c=document.querySelector('input[name="aCons"]:checked');
+  const id='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),nome=v('aNome').trim();
+  S.meetings[id]={kind:'atend',title:'Atendimento: '+nome,person:nome,date:v('aDate')||todayK(),bairro:v('aBairro').trim(),tipo:v('aTipo'),localAt:v('aLocal'),
+    consent:c?c.value:'',consentAt:new Date().toISOString(),delAudio:!!($('#aDel')||{}).checked,
+    start:nowHM(),end:'',dur:0,parts:[],texts:[],status:'rec',at:Date.now(),agenda:S.settings.agenda};
+  return id;
+}
+function normAtend(r){
+  r=r&&typeof r==='object'?r:{};
+  const txt=v=>v==null?'':Array.isArray(v)?v.map(txt).filter(Boolean).join(' '):typeof v==='object'?Object.values(v).map(txt).filter(Boolean).join(' '):String(v).trim();
+  const nul=v=>{const t=txt(v);return t&&!/^(null|n\/a|-|____)$/i.test(t)?t:null};
+  const bool=v=>v===true||/^(true|sim|x)$/i.test(txt(v))?true:v===false||/^(false|não|nao)$/i.test(txt(v))?false:null;
+  const e=r.evolucao||{},q=r.rma||{},F=v=>nul(v)||'____';
+  return{
+    evolucao:{demanda:F(e.demanda),situacao:F(e.situacao),intervencoes:F(e.intervencoes),encaminhamentos:F(e.encaminhamentos),combinados:F(e.combinados),retorno:F(e.retorno)},
+    tipo_atendimento:TIPOS_AT.find(t=>norm(t)===norm(txt(r.tipo_atendimento)))||null,
+    local:LOCAIS_AT.find(t=>norm(t)===norm(txt(r.local)))||null,
+    bairro:nul(r.bairro),telefone:nul(r.telefone),
+    rma:{tipo:nul(q.tipo),procedencia:nul(q.procedencia),solicitacao:nul(q.solicitacao),encaminhamento:nul(q.encaminhamento),
+      bolsa_familia:bool(q.bolsa_familia),cadunico:bool(q.cadunico),enc_cadunico:bool(q.enc_cadunico),enc_att_cadunico:bool(q.enc_att_cadunico),
+      bpc_idoso:bool(q.bpc_idoso),bpc_deficiencia:bool(q.bpc_deficiencia),descumprimento_bf:nul(q.descumprimento_bf),busca_ativa:bool(q.busca_ativa),
+      visita_domiciliar:bool(q.visita_domiciliar),n_pessoas:nul(q.n_pessoas),renda_familiar:nul(q.renda_familiar)},
+    acompanhamento_paif:bool(r.acompanhamento_paif),diario:nul(r.diario)||'',
+    conferir:(Array.isArray(r.conferir)?r.conferir:r.conferir?[r.conferir]:[]).map(txt).filter(Boolean)
+  };
+}
+function buildEvol(m){
+  const r=m.report||{},e=r.evolucao||{},s=S.settings,tipo=m.tipo||r.tipo_atendimento||TIPOS_AT[0],local=m.localAt||r.local||'CRAS';
+  const box=(list,sel)=>list.map(t=>`[${t===sel?'X':'&nbsp;&nbsp;'}] ${t}`).join('&nbsp;&nbsp;');
+  const L=(k,v)=>`<p><b>${k}:</b> ${esc(v||'____')}</p>`;
+  return `<h1>EVOLUÇÃO DE PRONTUÁRIO</h1>
+${L('Família / Responsável',m.person)}
+${L('Bairro',m.bairro||r.bairro)}
+${L('Data',brDate(m.date))}
+<p><b>Local:</b> ${box(LOCAIS_AT,local)}</p>
+<p><b>Tipo de atendimento:</b> ${box(TIPOS_AT,tipo)}</p>
+${L('Demanda / motivo do atendimento',e.demanda)}
+${L('Situação observada / relato da família',e.situacao)}
+${L('Intervenções realizadas',e.intervencoes)}
+${L('Encaminhamentos e articulação com a rede',e.encaminhamentos)}
+${L('Combinados e próximos passos',e.combinados)}
+${L('Retorno / próximo contato previsto',e.retorno)}
+<p class="mm-sign"><b>Assinatura do(a) técnico(a):</b> ______________________ ${esc(s.sigName||'Larissa Fonseca')}</p>`;
+}
+const buildDoc=m=>isAt(m)?buildEvol(m):buildMemo(m);
+function rmaRows(m){
+  const q=(m.report||{}).rma||{},X=v=>v===true?'X':v===false?'—':'';
+  return[['Data',brDate(m.date)],['Técnico',S.settings.sigName||'Larissa Fonseca'],['Tipo de atendimento',q.tipo],['Procedência',q.procedencia],['Nome do usuário',m.person],
+    ['Bairro',m.bairro||(m.report||{}).bairro],['NIS ou CPF',''],['Solicitação',q.solicitacao],['Encaminhamento',q.encaminhamento],['Bolsa Família',X(q.bolsa_familia)],
+    ['CadÚnico',X(q.cadunico)],['Enc. p/ CadÚnico',X(q.enc_cadunico)],['Enc. p/ atualização do CadÚnico',X(q.enc_att_cadunico)],['BPC Idoso',X(q.bpc_idoso)],
+    ['BPC Deficiência',X(q.bpc_deficiencia)],['Descumprimento de condicionalidade BF',q.descumprimento_bf?'Sim. '+q.descumprimento_bf:''],['Busca ativa',X(q.busca_ativa)],
+    ['Visita domiciliar',X(q.visita_domiciliar)],['Nº de pessoas',q.n_pessoas],['Renda familiar',q.renda_familiar]];
+}
+function renderAtendTab(box,m){
+  const r=m.report||{};
+  if(UI.mtab==='rma'){
+    const rows=rmaRows(m);
+    box.innerHTML=`<div class="msec"><h3>Planilha RMA — aba Atendimentos</h3>
+    <div class="kv">${rows.map(([k,v])=>`<div><span>${k}</span><b>${esc(v==null||v===''?'—':v)}</b></div>`).join('')}</div>
+    <p class="note-sm">Em branco o que não foi dito. ${r.acompanhamento_paif===true?'Ficou dito que a família passa a ser acompanhada no PAIF: entra também na aba Famílias PAIF.':r.acompanhamento_paif===false?'Não entra em acompanhamento PAIF.':'Não ficou claro se a família entra em acompanhamento PAIF.'}</p>
+    <h3>Diário de Atividades</h3><p>${esc(r.diario||'—')}</p>
+    ${r.conferir&&r.conferir.length?`<h3>Para conferir</h3><ul>${r.conferir.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>`:''}
+    <div class="mact"><button data-act="rmaCopy">${ic('copy')}Copiar dados</button></div></div>`;
+    return;
+  }
+  // evolução
+  box.innerHTML=`<label class="check revbox"><input type="checkbox" data-act="atendReview" ${m.reviewed?'checked':''}><span><b>Revisei esta evolução</b><small>${m.lancado?'Já lançada no prontuário, na planilha e no Diário.':'Revisadas ficam prontas para eu lançar no prontuário do Drive, na planilha RMA e no Diário quando você pedir.'}</small></span></label>
+  <div class="mact"><button data-act="memoCopy">${ic('copy')}Copiar</button><button data-act="memoWord">${ic('dl')}Word</button><button data-act="memoPdf">${ic('doc')}PDF</button><button data-act="memoShare">${ic('share')}Compartilhar</button></div>
+  <div class="memo" id="memoEd" contenteditable="true" data-mm="1" spellcheck="true" aria-label="Evolução do prontuário (editável)">${cleanMemo(m.memo||buildEvol(m))}</div>
+  ${r.conferir&&r.conferir.length?`<div class="msec"><h3>Para conferir</h3><ul>${r.conferir.map(c=>`<li>${esc(c)}</li>`).join('')}</ul></div>`:''}
+  <div class="mact"><button data-act="memoRebuild">${ic('undo')}Refazer a partir da gravação</button></div>
+  <p class="note-sm">Edite direto no texto acima; as mudanças são salvas sozinhas. Campos com ____ não foram ditos na gravação.</p>`;
+}
+async function deleteAudio(id){
+  const m=S.meetings[id];if(!m)return;const paths=(m.parts||[]).filter(Boolean).map(p=>p.path);
+  if(paths.length){try{const r=await SB.storage.from('anexos').remove(paths);if(r&&r.error)return}catch(e){return}}
+  m.audioDeleted=true;saveMeet(id,m);
+}
 Object.assign(ACT,{
-  meet(){openMeetForm()},
+  recKind(b){if(b.dataset.v==='atend')openAtendForm();else openMeetForm()},
+  atendStart(){if(atendFormOk())startMeetRec(newAtendFromForm)},
+  atendImport(){if(!atendFormOk())return;UI.importFactory=newAtendFromForm;$('#fMeet').value='';$('#fMeet').click()},
+  atendReview(b){const m=S.meetings[UI.meet];if(!m)return;m.reviewed=b.checked;saveMeet(UI.meet,m);msg(b.checked?'Marcada como revisada.':'Marcada como não revisada.')},
+  rmaCopy:async()=>{const m=S.meetings[UI.meet],t=rmaRows(m).map(([k,v])=>`${k}: ${v==null||v===''?'':v}`).join('\n')+'\n\nDiário: '+((m.report||{}).diario||'');
+    try{await navigator.clipboard.writeText(t);msg('Dados copiados.')}catch(e){msg('Não foi possível copiar.')}}
+});
+
+Object.assign(ACT,{
+  meet(){openRecChooser()},
   meetStart(){startMeetRec()},
-  meetImport(){$('#fMeet').value='';$('#fMeet').click()},
+  meetImport(){UI.importFactory=newMeetFromForm;$('#fMeet').value='';$('#fMeet').click()},
   meetPause(){if(!MR)return;MR.paused=!MR.paused;if(!MR.paused)MR.lastAudio=Date.now();openRecView()},
   meetResume(){resumeMic()},
   meetStop(){finishMeetRec()},
@@ -1682,7 +1834,8 @@ Object.assign(ACT,{
   notesTab(b){UI.notesTab=b.dataset.v;render()},
   mtab(b){UI.mtab=b.dataset.v;document.querySelectorAll('.mtabs button').forEach(x=>x.classList.toggle('on',x===b));renderMeetTab()},
   meetToSheets(){pendToSheets()},
-  meetDel(b){armed(b,'Excluir?',async()=>{await deleteMeeting(UI.meet);closeOv();msg('Reunião excluída.')})},
+  meetDel(b){armed(b,'Excluir?',async()=>{const at=isAt(S.meetings[UI.meet]);await deleteMeeting(UI.meet);closeOv();msg(at?'Atendimento excluído.':'Reunião excluída.')})},
+  txDel(b){armed(b,'Toque de novo para apagar',async()=>{const id=UI.meet,m=S.meetings[id];await deleteAudio(id);m.texts=[];m.txDeleted=true;saveMeet(id,m);renderMeetTab();msg('Transcrição apagada. A evolução continua salva.')})},
   memoShare:async()=>{const m=S.meetings[UI.meet],text=memoPlain(),file=new File([memoDoc(m)],memoFileName(m,'doc'),{type:'application/msword'});
     try{if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({title:'Memória de reunião',text,files:[file]});else if(navigator.share)await navigator.share({title:'Memória de reunião',text});else{await navigator.clipboard.writeText(text);msg('Este navegador não compartilha direto. A memória foi copiada.')}}catch(e){if(e&&e.name!=='AbortError')msg('Não foi possível compartilhar.')}},
   memoMail(){const m=S.meetings[UI.meet],to=(m.emails||'').replace(/\s+/g,''),sub=`Memória de reunião – ${m.title||''} – ${brDate(m.date)}`;let body=memoPlain();if(body.length>1800)body=body.slice(0,1800)+'\n\n[continua — memória completa em anexo]';
@@ -1691,7 +1844,7 @@ Object.assign(ACT,{
   memoCopy:async()=>{try{await navigator.clipboard.writeText(memoPlain());msg('Memória copiada.')}catch(e){msg('Não foi possível copiar.')}},
   memoPdf(){const m=S.meetings[UI.meet];$('#print').innerHTML=`<div class="memo">${cleanMemo($('#memoEd').innerHTML)}</div>`;const t=document.title;document.title=memoFileName(m,'pdf').replace(/\.pdf$/,'');window.print();setTimeout(()=>{document.title=t;$('#print').innerHTML=''},1000)},
   memoWord(){const m=S.meetings[UI.meet];download(new Blob([memoDoc(m)],{type:'application/msword'}),memoFileName(m,'doc'))},
-  memoRebuild(b){armed(b,'Toque de novo: suas edições serão substituídas',()=>{const m=S.meetings[UI.meet];m.memo=buildMemo(m);m.memoEdited=false;saveMeet(UI.meet);renderMeetTab()})},
+  memoRebuild(b){armed(b,'Toque de novo: suas edições serão substituídas',()=>{const m=S.meetings[UI.meet];m.memo=buildDoc(m);m.memoEdited=false;saveMeet(UI.meet);renderMeetTab()})},
   txCopy:async()=>{try{await navigator.clipboard.writeText((S.meetings[UI.meet].texts||[]).join('\n\n'));msg('Transcrição copiada.')}catch(e){msg('Não foi possível copiar.')}},
   txAudio:async()=>{const m=S.meetings[UI.meet],box=$('#audios');if(!box)return;box.innerHTML='Carregando…';
     const urls=[];for(const p of (m.parts||[]).filter(Boolean)){const r=await SB.storage.from('anexos').createSignedUrl(p.path,3600);if(r.data)urls.push(r.data.signedUrl)}

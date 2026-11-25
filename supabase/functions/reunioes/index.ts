@@ -115,6 +115,83 @@ ${transcript}
   return JSON.parse(m ? m[0] : txt);
 }
 
+const ATEND_SCHEMA = `{
+  "evolucao": {
+    "demanda": "demanda / motivo do atendimento",
+    "situacao": "situação observada / relato da família",
+    "intervencoes": "intervenções realizadas pela técnica",
+    "encaminhamentos": "encaminhamentos e articulação com a rede",
+    "combinados": "combinados e próximos passos",
+    "retorno": "retorno / próximo contato previsto"
+  },
+  "tipo_atendimento": "Atendimento particularizado | Visita domiciliar | Contato telefônico | Busca ativa | Grupo / oficina | Discussão de caso | Outro",
+  "local": "CRAS | Domicílio | Outro | null",
+  "bairro": "bairro citado ou null",
+  "telefone": "telefone citado ou null",
+  "rma": {
+    "tipo": "Atendimento técnico | Recepção / Orientação | Visita domiciliar",
+    "procedencia": "Demanda espontânea | Busca ativa | Encaminhamento CREAS | Encaminhamento Saúde | Encaminhamento Educação | Encaminhamento Conselho Tutelar | Encaminhamento Judiciário | Retorno | null",
+    "solicitacao": "o que a pessoa solicitou, curto",
+    "encaminhamento": "para onde foi encaminhada, curto, ou null",
+    "bolsa_familia": "true | false | null",
+    "cadunico": "true | false | null",
+    "enc_cadunico": "true | false | null",
+    "enc_att_cadunico": "true | false | null",
+    "bpc_idoso": "true | false | null",
+    "bpc_deficiencia": "true | false | null",
+    "descumprimento_bf": "motivo, ou null",
+    "busca_ativa": "true | false | null",
+    "visita_domiciliar": "true | false | null",
+    "n_pessoas": "número ou null",
+    "renda_familiar": "valor dito ou null"
+  },
+  "acompanhamento_paif": "true se ficou dito que a família passa a ser acompanhada no PAIF, false se não, null se não ficou claro",
+  "diario": "1 ou 2 frases em 1ª pessoa para o Diário de Atividades",
+  "conferir": ["pontos ambíguos, nomes que podem ter saído errados ou dados que a técnica deve conferir"]
+}`;
+
+async function atendimento(key: string, transcript: string, meta: Record<string, unknown>) {
+  const sys = `Você ajuda ${meta.tecnica || "a assistente social"}, técnica do PAIF em um CRAS (assistência social, Brasil), a registrar um atendimento.
+Você recebe a transcrição automática ${meta.consentimento === "ditado" ? "de um ditado da própria técnica relatando o atendimento" : "de um atendimento gravado com autorização da pessoa atendida (falas da técnica e da família)"}.
+Devolva SOMENTE um objeto JSON válido, em português do Brasil, neste formato:
+${ATEND_SCHEMA}
+Regras obrigatórias:
+- Escreva a evolução em 1ª PESSOA, como a técnica: "Realizei atendimento...", "Orientei a usuária...", "Fui informada de que...", "Concedi...", "Passo a acompanhá-la". Linguagem técnica do serviço social, objetiva e respeitosa.
+- NUNCA invente. Use só o que está na transcrição e nos dados informados. Não acrescente intervenções, encaminhamentos ou combinados que não foram ditos. Campo sem informação = "____".
+- Registre apenas o que é pertinente ao atendimento; omita conversas paralelas e detalhes íntimos que não sejam necessários ao registro técnico.
+- Não inclua horário, CPF, NIS nem nomes de crianças que não tenham sido ditos.
+- A transcrição pode ter erros de reconhecimento de fala: corrija palavras óbvias pelo contexto sem mudar o sentido, e liste em "conferir" nomes ou dados duvidosos.
+- Nos campos true/false do "rma", use true só quando a informação foi dita; na dúvida, null.
+- "diario": 1 ou 2 frases em 1ª pessoa com nome, motivo e o que foi feito/encaminhado.`;
+  const user = `Dados informados pela técnica:
+- Data: ${meta.data ?? "não informada"}
+- Pessoa atendida / responsável familiar: ${meta.nome || "não informado"}
+- Bairro: ${meta.bairro || "não informado"}
+- Tipo de atendimento marcado: ${meta.tipo || "não informado"}
+- Local marcado: ${meta.local || "não informado"}
+
+Transcrição:
+"""
+${transcript}
+"""`;
+  const r = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: LLM_MODEL,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [{ role: "system", content: sys }, { role: "user", content: user }],
+    }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw { status: r.status, detail: j };
+  const raw = j.choices?.[0]?.message?.content ?? "{}";
+  const txt = Array.isArray(raw) ? raw.map((c: Record<string, unknown>) => c.text ?? "").join("") : String(raw);
+  const m = txt.match(/\{[\s\S]*\}/);
+  return JSON.parse(m ? m[0] : txt);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -140,6 +217,13 @@ Deno.serve(async (req) => {
       if (dl.error || !dl.data) return json({ error: "download_failed", detail: dl.error?.message }, 400);
       const out = await transcribe(key, dl.data, path.split("/").pop() || "audio.mp3", Number(body.offset) || 0);
       return json(out);
+    }
+
+    if (body.action === "atendimento") {
+      const transcript = String(body.transcript ?? "").slice(0, 400000);
+      if (transcript.trim().length < 20) return json({ error: "empty_transcript" }, 400);
+      const report = await atendimento(key, transcript, body.meta ?? {});
+      return json({ report });
     }
 
     if (body.action === "summarize") {
