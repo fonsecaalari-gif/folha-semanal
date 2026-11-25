@@ -1274,51 +1274,71 @@ async function idbDel(k){try{const db=await idb();await new Promise(res=>{const 
 async function idbAll(){try{const db=await idb();return await new Promise(res=>{const out=[],t=db.transaction('parts','readonly'),c=t.objectStore('parts').openCursor();c.onsuccess=()=>{const cur=c.result;if(cur){out.push({k:cur.key,v:cur.value});cur.continue()}else res(out)};c.onerror=()=>res(out)})}catch(e){return[]}}
 const partKey=(mid,idx)=>`${UID}|${mid}|${idx}`;
 
-/* --- recording engine: MP3 encoding, saved to the cloud every minute --- */
-const SNAP_SEC=60;
-function attachCapture(ctx,stream){
-  const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1),mute=ctx.createGain();mute.gain.value=0;
-  src.connect(proc);proc.connect(mute);mute.connect(ctx.destination);
-  Object.assign(MR,{ctx,stream,src,proc,ratio:ctx.sampleRate/SR,pos:0,lastAudio:Date.now()});
-  stream.getAudioTracks().forEach(t=>{t.onended=()=>{if(MR&&MR.stream===stream)markInterrupted()}});
-  proc.onaudioprocess=e=>{
-    if(!MR||MR.proc!==proc)return;
-    MR.lastAudio=Date.now();
-    if(MR.interrupted)clearInterrupted();
-    if(MR.paused)return;
-    const inp=e.inputBuffer.getChannelData(0),r=MR.ratio,n=Math.floor((inp.length-MR.pos)/r)+1,out=new Int16Array(Math.max(0,n));
-    let o=0,pos=MR.pos,peak=0;
-    while(pos<inp.length&&o<out.length){const a=Math.floor(pos),b=Math.min(inp.length,Math.max(a+1,Math.floor(pos+r)));let sum=0;for(let j=a;j<b;j++)sum+=inp[j];
-      const v=Math.max(-1,Math.min(1,sum/(b-a)));if(Math.abs(v)>peak)peak=Math.abs(v);out[o++]=v<0?v*32768:v*32767;pos+=r}
-    MR.pos=pos-inp.length;
-    const pcm=o===out.length?out:out.subarray(0,o),mp3=MR.enc.encodeBuffer(pcm);
-    if(mp3.length)MR.buf.push(new Uint8Array(mp3));
-    MR.partSamples+=pcm.length;MR.totalSamples+=pcm.length;MR.level=MR.level*.7+peak*.3;
-    if(MR.partSamples>=PART_SEC*SR)cutPart(false);
-    else if(MR.partSamples-MR.snapSamples>=SNAP_SEC*SR)snapshotPart();
-  };
-}
-function detachCapture(){
-  if(!MR)return;try{MR.proc.onaudioprocess=null;MR.src.disconnect();MR.proc.disconnect()}catch(e){}
-  try{MR.stream.getTracks().forEach(t=>{t.onended=null;t.stop()})}catch(e){}try{MR.ctx.close()}catch(e){}
-}
+/* --- recording engine: the browser's own recorder (MediaRecorder) in 1-minute blocks,
+       each block converted to MP3 and added to the current 10-minute part, saved to the cloud every minute --- */
+const SEG_MS=60000;
+const pickMime=()=>['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'].find(t=>{try{return MediaRecorder.isTypeSupported(t)}catch(e){return false}})||'';
+let DEC=null;
+function decCtx(){if(!DEC||DEC.state==='closed'){const AC=window.AudioContext||window.webkitAudioContext;try{DEC=new AC({sampleRate:SR})}catch(e){DEC=new AC()}}return DEC}
 async function openMic(){
-  const AC=window.AudioContext||window.webkitAudioContext,ctx=new AC();ctx.resume().catch(()=>{});
-  const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}}).catch(e=>{try{ctx.close()}catch(x){}throw e});
-  try{await ctx.resume()}catch(e){}
-  return{ctx,stream};
+  return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});
+}
+function attachCapture(stream){
+  MR.stream=stream;MR.lastAudio=Date.now();
+  try{const AC=window.AudioContext||window.webkitAudioContext;MR.mctx=new AC();MR.mctx.resume().catch(()=>{});
+    const an=MR.mctx.createAnalyser();an.fftSize=512;MR.mctx.createMediaStreamSource(stream).connect(an);MR.an=an;MR.anBuf=new Uint8Array(an.fftSize)}catch(e){MR.an=null}
+  stream.getAudioTracks().forEach(t=>{t.onended=()=>{if(MR&&MR.stream===stream)markInterrupted()}});
+  startSegment();
+}
+function startSegment(){
+  if(!MR||!MR.stream||MR.paused||MR.interrupted||MR.stopping)return;
+  let rec;try{rec=new MediaRecorder(MR.stream,MR.mime?{mimeType:MR.mime}:{})}catch(e){try{rec=new MediaRecorder(MR.stream)}catch(x){markInterrupted();return}}
+  const seg={rec,chunks:[],t0:Date.now()};seg.done=new Promise(r=>seg.resolve=r);MR.seg=seg;MR.runSince=MR.runSince||Date.now();
+  rec.ondataavailable=e=>{if(e.data&&e.data.size){seg.chunks.push(e.data);if(MR&&MR.seg===seg){MR.lastAudio=Date.now();if(MR.interrupted)clearInterrupted()}}};
+  rec.onstop=()=>{
+    clearTimeout(seg.timer);
+    if(MR&&seg.chunks.length){MR.segQ.push(new Blob(seg.chunks,{type:rec.mimeType||MR.mime||'audio/mp4'}));convertSegments()}
+    if(MR&&MR.seg===seg){MR.seg=null;startSegment()}
+    seg.resolve();
+  };
+  rec.onerror=()=>{if(MR&&MR.seg===seg)markInterrupted()};
+  try{rec.start(1000)}catch(e){MR.seg=null;markInterrupted();return}
+  seg.timer=setTimeout(()=>{try{if(rec.state!=='inactive')rec.stop()}catch(e){}},SEG_MS);
+}
+function stopSegment(){const s=MR&&MR.seg;if(!s)return;try{if(s.rec.state!=='inactive'){if(s.rec.state==='recording')s.rec.requestData();s.rec.stop()}}catch(e){}}
+async function convertSegments(){
+  if(!MR||MR.converting)return;MR.converting=true;
+  while(MR&&MR.segQ.length){
+    const blob=MR.segQ.shift();
+    try{const buf=await decCtx().decodeAudioData(await blob.arrayBuffer());addPcm(buf)}
+    catch(e){console.warn('decode',e);MR.decodeErr=(MR.decodeErr||0)+1}
+  }
+  if(MR)MR.converting=false;
+}
+function addPcm(buf){
+  const d0=buf.getChannelData(0),d1=buf.numberOfChannels>1?buf.getChannelData(1):null,ratio=buf.sampleRate/SR,n=Math.floor(buf.length/ratio);
+  let i=0,peak=0;
+  while(i<n){
+    const take=Math.min(PART_SEC*SR-MR.partSamples,n-i),pcm=new Int16Array(take);
+    for(let k=0;k<take;k++){const a=Math.floor((i+k)*ratio);let v=d0[a];if(d1)v=(v+d1[a])/2;v=Math.max(-1,Math.min(1,v));if(Math.abs(v)>peak)peak=Math.abs(v);pcm[k]=v<0?v*32768:v*32767}
+    for(let k=0;k<take;k+=11520){const b=MR.enc.encodeBuffer(pcm.subarray(k,k+11520));if(b.length)MR.buf.push(new Uint8Array(b))}
+    MR.partSamples+=take;MR.totalSamples+=take;i+=take;
+    if(MR.partSamples>=PART_SEC*SR)cutPart(false);
+  }
+  if(!MR.an)MR.level=peak;
+  snapshotPart();
 }
 async function startMeetRec(factory){factory=typeof factory==='function'?factory:newMeetFromForm;
   if(!window.lamejs){msg('O gravador ainda não carregou. Verifique a internet e tente de novo.');return}
-  if(!navigator.mediaDevices){msg('Este navegador não grava áudio.');return}
-  let mic;try{mic=await openMic()}catch(e){msg('Permita o uso do microfone para gravar a reunião.');return}
+  if(!navigator.mediaDevices||!window.MediaRecorder){msg('Este navegador não grava áudio. Atualize o iPhone ou use o Chrome.');return}
+  decCtx().resume().catch(()=>{});
+  let stream;try{stream=await openMic()}catch(e){msg('Permita o uso do microfone para gravar.');return}
   const id=factory();saveMeet(id);
-  MR={id,enc:new lamejs.Mp3Encoder(1,SR,32),buf:[],partSamples:0,snapSamples:0,totalSamples:0,idx:0,
-      paused:false,level:0,lock:null,interrupted:false,gaps:[]};
-  attachCapture(mic.ctx,mic.stream);
+  MR={id,mime:pickMime(),enc:new lamejs.Mp3Encoder(1,SR,32),buf:[],partSamples:0,snapSamples:0,totalSamples:0,idx:0,segQ:[],
+      paused:false,level:0,lock:null,interrupted:false,gaps:[],activeMs:0,runSince:0};
+  attachCapture(stream);
   wakeOn();openRecView();render();
   MR.tick=setInterval(recWatch,250);
-  MR.backupT=setInterval(()=>{if(MR&&MR.buf.length)idbPut(partKey(MR.id,MR.idx),{uid:UID,mid:MR.id,idx:MR.idx,blob:new Blob(MR.buf,{type:'audio/mpeg'}),sec:MR.partSamples/SR,at:Date.now()})},15000);
 }
 function queueUpload(u){
   const i=UPQ.findIndex(x=>x.mid===u.mid&&x.idx===u.idx&&!x.busy);
@@ -1326,7 +1346,7 @@ function queueUpload(u){
   pumpUploads();
 }
 function snapshotPart(){
-  if(!MR||!MR.buf.length)return;
+  if(!MR||!MR.buf.length||MR.partSamples===MR.snapSamples)return;
   MR.snapSamples=MR.partSamples;
   const blob=new Blob(MR.buf,{type:'audio/mpeg'}),sec=MR.partSamples/SR;
   queueUpload({mid:MR.id,idx:MR.idx,blob,sec,final:false});
@@ -1341,7 +1361,7 @@ function cutPart(final){
     idbPut(partKey(MR.id,idx),{uid:UID,mid:MR.id,idx,blob,sec,at:Date.now()});
     MR.idx++;
   }
-  MR.buf=[];MR.partSamples=0;MR.snapSamples=0;if(!final)MR.enc=new lamejs.Mp3Encoder(1,SR,32);
+  MR.buf=[];MR.partSamples=0;MR.snapSamples=0;MR.enc=new lamejs.Mp3Encoder(1,SR,32);
 }
 async function pumpUploads(){
   if(upBusy)return;upBusy=true;
@@ -1362,31 +1382,35 @@ const pendingUploads=mid=>UPQ.filter(u=>u.mid===mid).length;
 async function wakeOn(){try{if(navigator.wakeLock&&MR)MR.lock=await navigator.wakeLock.request('screen')}catch(e){}}
 document.addEventListener('visibilitychange',()=>{
   if(!MR)return;
-  if(document.hidden){snapshotPart();if(MR.buf.length)idbPut(partKey(MR.id,MR.idx),{uid:UID,mid:MR.id,idx:MR.idx,blob:new Blob(MR.buf,{type:'audio/mpeg'}),sec:MR.partSamples/SR,at:Date.now()});return}
-  wakeOn();try{MR.ctx.resume()}catch(e){}
+  if(document.hidden){stopSegment();return}   // closes the current block so it gets converted and saved
+  wakeOn();try{DEC&&DEC.resume()}catch(e){}try{MR.mctx&&MR.mctx.resume()}catch(e){}
 });
-const recElapsed=()=>MR?MR.totalSamples/SR:0;
+const recElapsed=()=>MR?(MR.activeMs+(MR.runSince&&!MR.paused&&!MR.interrupted?Date.now()-MR.runSince:0))/1000:0;
+function stopClock(){if(MR&&MR.runSince){MR.activeMs+=Date.now()-MR.runSince;MR.runSince=0}}
 const savedSec=m=>(m.parts||[]).reduce((a,p)=>a+(p&&p.sec||0),0);
 function markInterrupted(){
   if(!MR||MR.interrupted)return;
-  MR.interrupted=true;MR.intAt=MR.lastAudio||Date.now();snapshotPart();
+  MR.interrupted=true;MR.intAt=MR.lastAudio||Date.now();stopClock();stopSegment();
   try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}
   openRecView();
 }
 function clearInterrupted(){
   if(!MR||!MR.interrupted)return;
-  MR.gaps.push([MR.intAt,Date.now()]);MR.interrupted=false;openRecView();
+  MR.gaps.push([MR.intAt,Date.now()]);MR.interrupted=false;MR.runSince=Date.now();openRecView();
+  if(!MR.seg)startSegment();
 }
 function recWatch(){
   if(!MR)return;
-  if(!document.hidden&&!MR.interrupted&&Date.now()-(MR.lastAudio||0)>3500)markInterrupted();
+  if(MR.an){try{MR.an.getByteTimeDomainData(MR.anBuf);let p=0;for(const v of MR.anBuf){const d=Math.abs(v-128);if(d>p)p=d}MR.level=MR.level*.6+(p/128)*.4}catch(e){}}
+  if(!document.hidden&&!MR.paused&&!MR.interrupted&&MR.seg&&Date.now()-(MR.lastAudio||0)>4000)markInterrupted();
   updRecView();
 }
 async function resumeMic(){
   if(!MR)return;
   const st=$('#rS');if(st)st.textContent='Religando o microfone…';
-  try{const mic=await openMic();detachCapture();attachCapture(mic.ctx,mic.stream);wakeOn();
-    setTimeout(()=>{if(MR&&Date.now()-MR.lastAudio>2500)msg('O microfone ainda não respondeu. Toque de novo em Continuar gravando.')},3000)}
+  try{const stream=await openMic();detachCapture();MR.interrupted=false;MR.gaps.push([MR.intAt||Date.now(),Date.now()]);MR.runSince=Date.now();
+    attachCapture(stream);wakeOn();openRecView();
+    setTimeout(()=>{if(MR&&Date.now()-MR.lastAudio>3500)msg('O microfone ainda não respondeu. Toque de novo em Continuar gravando.')},4000)}
   catch(e){msg('Não foi possível religar o microfone. Verifique a permissão do microfone.')}
 }
 const hm=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())};
@@ -1394,7 +1418,7 @@ function openRecView(){
   if(!MR)return;const m=S.meetings[MR.id];
   openOv('meetrec',`<div class="recview">${MR.interrupted
     ?`<div class="recwarn" role="alert"><b>A gravação parou</b><span>O celular desligou o microfone${MR.intAt?' às '+hm(MR.intAt):''} (tela bloqueada ou app em segundo plano). O que foi gravado até aqui está salvo.</span><button class="cta" data-act="meetResume">${ic('rec')}Continuar gravando</button></div>`
-    :`<span class="pill run">${ic('rec')} Gravando reunião</span>`}
+    :`<span class="pill run">${ic('rec')} ${isAt(m)?'Gravando atendimento':'Gravando reunião'}</span>`}
   <h2>${esc(m.title||'Reunião sem assunto')}</h2>
   <div class="bigt" id="rT">${fmtClock(recElapsed())}</div><div class="lvl" aria-hidden="true"><i id="rL"></i></div><div class="recstate" id="rS"></div>
   <div class="recctl"><button class="ghost" data-act="meetPause" id="rP">${ic(MR.paused?'play':'pause')}${MR.paused?'Continuar':'Pausar'}</button><button class="cta" data-act="meetStop">${ic('stop')}Encerrar e gerar relatório</button></div>
@@ -1407,20 +1431,31 @@ function updRecView(){
   const t=$('#rT'),l=$('#rL'),st=$('#rS'),m=S.meetings[MR.id];
   if(t)t.textContent=fmtClock(recElapsed());
   if(l)l.style.width=(MR.interrupted?0:Math.min(100,Math.round(MR.level*160)))+'%';
-  if(st&&!/Religando/.test(st.textContent)){const sv=savedSec(m),p=pendingUploads(MR.id);
+  if(st&&!/Religando|Finalizando/.test(st.textContent)){const sv=savedSec(m),p=pendingUploads(MR.id);
     st.textContent=MR.paused?'Pausado':(sv?`${fmtClock(sv)} salvos na nuvem`:'Salvando na nuvem a cada minuto')+(p?' · enviando…':'')}
 }
-function stopCapture(){clearInterval(MR.tick);clearInterval(MR.backupT);detachCapture();try{MR.lock&&MR.lock.release()}catch(e){}}
+function detachCapture(){
+  if(!MR)return;const s=MR.seg;MR.seg=null;
+  try{if(s&&s.rec.state!=='inactive')s.rec.stop()}catch(e){}
+  try{MR.stream&&MR.stream.getTracks().forEach(t=>{t.onended=null;t.stop()})}catch(e){}
+  try{if(MR.mctx){MR.mctx.close().catch(()=>{});MR.mctx=null}}catch(e){}MR.an=null;
+}
+function stopCapture(){clearInterval(MR.tick);detachCapture();try{MR.lock&&MR.lock.release()}catch(e){}}
 async function finishMeetRec(){
-  if(!MR)return;const id=MR.id,m=S.meetings[id];
-  if(MR.interrupted)clearInterrupted();
-  cutPart(true);m.dur=Math.round(recElapsed());m.end=nowHM();
+  if(!MR||MR.stopping)return;const id=MR.id,m=S.meetings[id];
+  MR.stopping=true;stopClock();
+  const st=$('#rS');if(st)st.textContent='Finalizando a gravação…';
+  const s=MR.seg;detachCapture();
+  if(s)await Promise.race([s.done,new Promise(r=>setTimeout(r,4000))]);
+  for(let t=0;t<200&&(MR.converting||MR.segQ.length);t++)await new Promise(r=>setTimeout(r,100));
+  if(MR.interrupted&&MR.intAt)MR.gaps.push([MR.intAt,Date.now()]);
+  cutPart(true);m.dur=Math.round(MR.totalSamples/SR);m.end=nowHM();
   m.gaps=MR.gaps.filter(g=>g[1]-g[0]>5000).map(g=>hm(g[0])+'–'+hm(g[1]));
   m.status='up';stopCapture();MR=null;saveMeet(id,m);
   linkMeetingToDay(id);openProc(id);processMeeting(id);
 }
 async function discardMeetRec(){
-  if(!MR)return;const id=MR.id,n=MR.idx;stopCapture();MR=null;
+  if(!MR)return;const id=MR.id,n=MR.idx;MR.stopping=true;MR.segQ=[];stopCapture();MR=null;
   for(let i=UPQ.length-1;i>=0;i--)if(UPQ[i].mid===id)UPQ.splice(i,1);
   for(let i=0;i<=n;i++)idbDel(partKey(id,i));
   await deleteMeeting(id,true);closeOv();msg('Gravação descartada.');
@@ -1825,7 +1860,7 @@ Object.assign(ACT,{
   meet(){openRecChooser()},
   meetStart(){startMeetRec()},
   meetImport(){UI.importFactory=newMeetFromForm;$('#fMeet').value='';$('#fMeet').click()},
-  meetPause(){if(!MR)return;MR.paused=!MR.paused;if(!MR.paused)MR.lastAudio=Date.now();openRecView()},
+  meetPause(){if(!MR||MR.interrupted)return;MR.paused=!MR.paused;if(MR.paused){stopClock();stopSegment()}else{MR.runSince=Date.now();MR.lastAudio=Date.now();startSegment()}openRecView()},
   meetResume(){resumeMic()},
   meetStop(){finishMeetRec()},
   meetDiscard(b){armed(b,'Toque de novo para descartar',discardMeetRec)},
